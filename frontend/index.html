@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCON Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-body: #0a0f1a;
+            --bg-header: rgba(15,23,42,0.8);
+            --bg-sidebar: rgba(15,23,42,0.5);
+            --bg-card: rgba(30,41,59,0.5);
+            --bg-card-hover: #1e293b;
+            --bg-console: #020617;
+            --bg-input: #0f172a;
+            --border-color: rgba(51,65,85,0.5);
+            --border-header: #1e293b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --text-dim: #475569;
+            --accent: #38bdf8;
+            --accent-hover: #7dd3fc;
+            --accent-glow: rgba(56,189,248,0.15);
+            --scrollbar-track: #0f172a;
+            --scrollbar-thumb: #334155;
+        }
+        [data-theme="ocean"] {
+            --bg-body: #0a1628;
+            --bg-header: rgba(10,30,60,0.85);
+            --bg-sidebar: rgba(10,25,50,0.6);
+            --bg-card: rgba(15,40,75,0.5);
+            --bg-card-hover: #0f3460;
+            --bg-console: #050e1f;
+            --bg-input: #0a1e3c;
+            --border-color: rgba(30,80,140,0.4);
+            --border-header: #0f3460;
+            --accent: #06b6d4;
+            --accent-hover: #67e8f9;
+            --accent-glow: rgba(6,182,212,0.15);
+            --scrollbar-track: #0a1e3c;
+            --scrollbar-thumb: #1e4976;
+        }
+        [data-theme="emerald"] {
+            --bg-body: #071a12;
+            --bg-header: rgba(7,26,18,0.85);
+            --bg-sidebar: rgba(7,26,18,0.6);
+            --bg-card: rgba(13,47,33,0.5);
+            --bg-card-hover: #0d2f21;
+            --bg-console: #030f09;
+            --bg-input: #0a2318;
+            --border-color: rgba(20,80,55,0.5);
+            --border-header: #14503a;
+            --accent: #34d399;
+            --accent-hover: #6ee7b7;
+            --accent-glow: rgba(52,211,153,0.15);
+            --scrollbar-track: #0a2318;
+            --scrollbar-thumb: #14503a;
+        }
+        [data-theme="sunset"] {
+            --bg-body: #1a0a0f;
+            --bg-header: rgba(30,12,18,0.85);
+            --bg-sidebar: rgba(30,12,18,0.6);
+            --bg-card: rgba(55,20,35,0.5);
+            --bg-card-hover: #3b1425;
+            --bg-console: #0f0508;
+            --bg-input: #2a0e18;
+            --border-color: rgba(100,30,55,0.5);
+            --border-header: #5c1a35;
+            --accent: #f472b6;
+            --accent-hover: #f9a8d4;
+            --accent-glow: rgba(244,114,182,0.15);
+            --scrollbar-track: #2a0e18;
+            --scrollbar-thumb: #5c1a35;
+        }
+        [data-theme="amber"] {
+            --bg-body: #1a150a;
+            --bg-header: rgba(30,24,10,0.85);
+            --bg-sidebar: rgba(30,24,10,0.6);
+            --bg-card: rgba(55,43,18,0.5);
+            --bg-card-hover: #3b2b12;
+            --bg-console: #0f0b05;
+            --bg-input: #2a200d;
+            --border-color: rgba(100,75,25,0.5);
+            --border-header: #5c4a18;
+            --accent: #fbbf24;
+            --accent-hover: #fcd34d;
+            --accent-glow: rgba(251,191,36,0.15);
+            --scrollbar-track: #2a200d;
+            --scrollbar-thumb: #5c4a18;
+        }
+        [data-theme="violet"] {
+            --bg-body: #10061a;
+            --bg-header: rgba(18,8,30,0.85);
+            --bg-sidebar: rgba(18,8,30,0.6);
+            --bg-card: rgba(35,15,60,0.5);
+            --bg-card-hover: #2a1045;
+            --bg-console: #080310;
+            --bg-input: #1a0a2e;
+            --border-color: rgba(60,25,100,0.5);
+            --border-header: #3c1964;
+            --accent: #a78bfa;
+            --accent-hover: #c4b5fd;
+            --accent-glow: rgba(167,139,250,0.15);
+            --scrollbar-track: #1a0a2e;
+            --scrollbar-thumb: #3c1964;
+        }
+        [data-theme="dark"] {
+            --bg-body: #111111;
+            --bg-header: rgba(24,24,24,0.9);
+            --bg-sidebar: rgba(24,24,24,0.6);
+            --bg-card: rgba(38,38,38,0.6);
+            --bg-card-hover: #2a2a2a;
+            --bg-console: #0a0a0a;
+            --bg-input: #1a1a1a;
+            --border-color: rgba(60,60,60,0.5);
+            --border-header: #2a2a2a;
+            --text-primary: #d4d4d4;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --text-dim: #525252;
+            --accent: #e5e5e5;
+            --accent-hover: #ffffff;
+            --accent-glow: rgba(255,255,255,0.08);
+            --scrollbar-track: #1a1a1a;
+            --scrollbar-thumb: #404040;
+        }
+        body { background-color: var(--bg-body); color: var(--text-primary); transition: background-color 0.3s ease, color 0.3s ease; }
+        .console-font { font-family: 'JetBrains Mono', monospace; }
+        .console-box {
+            background-color: var(--bg-console);
+            height: 450px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        .console-box::-webkit-scrollbar { width: 6px; }
+        .console-box::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        .console-box::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+        .sidebar-btn { transition: all 0.15s ease; }
+        .sidebar-btn:hover { transform: translateX(4px); background-color: var(--bg-card-hover); }
+        .sidebar-btn.active { background-color: var(--bg-card-hover); border-left: 3px solid var(--accent); color: var(--accent); }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .fade-in { animation: fadeIn 0.2s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .animate-slide-in { animation: slideIn 0.3s ease forwards; }
+        .player-card:hover { background-color: var(--bg-card-hover); }
+        .t-header { background-color: var(--bg-header); border-color: var(--border-header); backdrop-filter: blur(12px); }
+        .t-sidebar { background-color: var(--bg-sidebar); border-color: var(--border-color); }
+        .t-card { background-color: var(--bg-card); border-color: var(--border-color); transition: all 0.2s ease; }
+        .t-card:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+        .t-accent { color: var(--accent); }
+        .t-input { background-color: var(--bg-input); border-color: var(--border-color); }
+        .t-input:focus { border-color: var(--accent); }
+        .t-muted { color: var(--text-muted); }
+        .t-dim { color: var(--text-dim); }
+        .theme-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s ease; }
+        .theme-dot:hover { transform: scale(1.2); }
+        .theme-dot.active { border-color: white; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+        .theme-picker { position: relative; }
+        .theme-dropdown { display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; padding: 12px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); backdrop-filter: blur(12px); z-index: 100; min-width: 200px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .theme-dropdown.show { display: block; animation: fadeIn 0.15s ease; }
+        .overview-card { position: relative; overflow: hidden; }
+        .overview-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), transparent); opacity: 0; transition: opacity 0.3s; }
+        .overview-card:hover::before { opacity: 1; }
+        .card-emoji { font-size: 1.75rem; line-height: 1; }
+        .glow-text { text-shadow: 0 0 20px var(--accent-glow); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Login Screen -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="t-card rounded-2xl border p-8 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold t-accent glow-text mb-2">🎮 RCON Dashboard</h1>
+                <p class="text-sm t-muted">Connect to your Rust server</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Server Host / IP</label>
+                    <input type="text" id="login-host" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-sky-500 transition console-font" placeholder="rust.example.com" autocomplete="off">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">RCON Port</label>
+                    <input type="number" id="login-port" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-sky-500 transition console-font" placeholder="28016" value="28016">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">RCON Password</label>
+                    <input type="password" id="login-password" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-sky-500 transition console-font" placeholder="Enter RCON password">
+                </div>
+                <div id="login-error" class="hidden text-sm text-red-400 bg-red-950/50 border border-red-800/30 rounded-lg px-4 py-2"></div>
+                <button onclick="doLogin()" id="login-btn" class="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-lg text-sm font-semibold transition mt-2">Connect</button>
+            </div>
+            <!-- Saved Servers -->
+            <div id="saved-servers-section" class="mt-6 pt-6 border-t border-slate-700/50" style="display:none;">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs text-slate-400 uppercase tracking-wider">Saved Servers</h2>
+                    <button onclick="clearAllSavedServers()" class="text-[10px] text-red-400/60 hover:text-red-400 transition">Clear All</button>
+                </div>
+                <div id="saved-servers-list" class="space-y-2 max-h-[200px] overflow-y-auto pr-1"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard (hidden until connected) -->
+    <div id="dashboard" class="hidden">
+    <!-- Top Bar -->
+    <header class="t-header border-b px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold t-accent tracking-tight glow-text">🎮 RCON Dashboard</h1>
+            <span id="server-addr" class="text-xs t-dim console-font">...</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-900/50 border border-red-800/50 text-sm">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span>
+                <span id="status-text" class="text-red-300">Connecting...</span>
+            </div>
+            <button onclick="doReconnect()" class="text-xs t-muted hover:text-white transition">Reconnect</button>
+            <button onclick="doDisconnect()" class="text-xs text-red-400 hover:text-red-300 transition">Disconnect</button>
+            <!-- Theme Switcher -->
+            <div class="theme-picker">
+                <button onclick="toggleThemeDropdown()" class="text-xs t-muted hover:text-white transition flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5" title="Change theme">
+                    🎨 Theme
+                </button>
+                <div id="theme-dropdown" class="theme-dropdown">
+                    <p class="text-xs t-muted uppercase tracking-wider mb-3">Choose Theme</p>
+                    <div class="grid grid-cols-1 gap-1.5">
+                        <button onclick="setTheme('')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="">
+                            <span class="theme-dot active" style="background: #38bdf8;"></span> Midnight Sky
+                        </button>
+                        <button onclick="setTheme('ocean')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="ocean">
+                            <span class="theme-dot" style="background: #06b6d4;"></span> Deep Ocean
+                        </button>
+                        <button onclick="setTheme('emerald')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="emerald">
+                            <span class="theme-dot" style="background: #34d399;"></span> Emerald Forest
+                        </button>
+                        <button onclick="setTheme('sunset')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="sunset">
+                            <span class="theme-dot" style="background: #f472b6;"></span> Sunset Rose
+                        </button>
+                        <button onclick="setTheme('amber')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="amber">
+                            <span class="theme-dot" style="background: #fbbf24;"></span> Golden Amber
+                        </button>
+                        <button onclick="setTheme('violet')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="violet">
+                            <span class="theme-dot" style="background: #a78bfa;"></span> Neon Violet
+                        </button>
+                        <button onclick="setTheme('dark')" class="theme-option flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-left text-sm" data-theme-btn="dark">
+                            <span class="theme-dot" style="background: linear-gradient(135deg, #333 50%, #111 50%);"></span> Dark Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex min-h-[calc(100vh-57px)]">
+        <!-- Sidebar -->
+        <nav class="w-56 t-sidebar border-r p-4 space-y-1">
+            <button onclick="switchTab('overview')" data-tab="overview" class="sidebar-btn active w-full text-left px-4 py-2.5 rounded text-sm flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Overview
+            </button>
+            <button onclick="switchTab('players')" data-tab="players" class="sidebar-btn w-full text-left px-4 py-2.5 rounded text-sm flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                Players <span id="player-count-badge" class="ml-auto text-xs bg-slate-700 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('console')" data-tab="console" class="sidebar-btn w-full text-left px-4 py-2.5 rounded text-sm flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Console
+            </button>
+            <button onclick="switchTab('inventory')" data-tab="inventory" class="sidebar-btn w-full text-left px-4 py-2.5 rounded text-sm flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                Give Items
+            </button>
+
+
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 overflow-y-auto">
+
+            <!-- Overview Tab (merged with Server Stats) -->
+            <div id="overview-tab" class="fade-in">
+                <!-- Welcome Banner -->
+                <div class="t-card rounded-xl p-5 border mb-6 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent" style="background: linear-gradient(135deg, var(--accent-glow), transparent 60%);"></div>
+                    <div class="relative flex justify-between items-center">
+                        <div>
+                            <h3 class="text-base font-semibold mb-1">👋 Welcome back, Admin</h3>
+                            <p class="text-sm t-muted">Here's a quick look at your Rust server status.</p>
+                        </div>
+                        <span id="stats-last-update" class="text-xs text-slate-500">Not updated yet</span>
+                    </div>
+                </div>
+
+                <!-- Top KPI Cards with Sparklines -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">🏃 Server FPS</p>
+                        <p id="stat-fps" class="text-2xl font-bold text-sky-400">--</p>
+                        <div class="mt-2 h-12"><canvas id="fps-chart" width="200" height="48"></canvas></div>
+                    </div>
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">🧱 Entities</p>
+                        <p id="stat-entities" class="text-2xl font-bold text-amber-400">--</p>
+                        <div class="mt-2 h-12"><canvas id="entity-chart" width="200" height="48"></canvas></div>
+                    </div>
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">🕐 Game Time</p>
+                        <p id="stat-gametime" class="text-2xl font-bold text-purple-400">--</p>
+                        <p id="stat-daycycle" class="text-xs text-slate-500 mt-1"></p>
+                    </div>
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">👥 Players</p>
+                        <p class="text-2xl font-bold text-green-400"><span id="stat-players">--</span></p>
+                        <p id="stat-queue" class="text-xs text-slate-500 mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Connection Status Row -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">🔗 Connection</p>
+                        <p id="overview-connection" class="text-lg font-bold text-red-400">Connecting...</p>
+                    </div>
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">👥 Players Online</p>
+                        <p id="overview-players" class="text-lg font-bold">0</p>
+                    </div>
+                    <div class="t-card rounded-xl p-4 border">
+                        <p class="text-xs t-muted uppercase tracking-wider mb-1">🖥️ Server</p>
+                        <p id="overview-server" class="text-lg font-semibold truncate" style="color: var(--text-primary);">...</p>
+                    </div>
+                </div>
+
+                <!-- FPS Health Bar -->
+                <div class="t-card rounded-xl p-4 border mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs t-muted uppercase tracking-wider">FPS Health</span>
+                        <span id="fps-bar-label" class="text-xs console-font text-slate-300">--</span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-3">
+                        <div id="fps-bar" class="h-3 rounded-full transition-all duration-500 bg-green-500" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-600 mt-1 console-font"><span>0</span><span>100</span><span>200</span><span>300</span><span>∞</span></div>
+                </div>
+
+                <!-- Detail Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Performance -->
+                    <div class="t-card rounded-xl p-5 border">
+                        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Performance
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="t-muted">Framerate</span><span id="perf-fps" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Memory</span><span id="perf-memory" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Collections</span><span id="perf-collections" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Uptime</span><span id="perf-uptime" class="console-font">--</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Network -->
+                    <div class="t-card rounded-xl p-5 border">
+                        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                            Network
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="t-muted">Network In</span><span id="net-in" class="console-font text-green-300">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Network Out</span><span id="net-out" class="console-font text-amber-300">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Players Online</span><span id="net-players" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Queued</span><span id="net-queued" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Joining</span><span id="net-joining" class="console-font">--</span></div>
+                        </div>
+                    </div>
+
+                    <!-- World -->
+                    <div class="t-card rounded-xl p-5 border">
+                        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            World
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="t-muted">Map</span><span id="world-map" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">World Size</span><span id="world-size" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Seed</span><span id="world-seed" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Entity Count</span><span id="world-entities" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Save Created</span><span id="world-save" class="console-font">--</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Server Identity -->
+                    <div class="t-card rounded-xl p-5 border">
+                        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+                            Server Info
+                        </h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between gap-4"><span class="t-muted shrink-0">Hostname</span><span id="srv-hostname" class="console-font text-right break-all">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Max Players</span><span id="srv-maxplayers" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Restarting</span><span id="srv-restarting" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Protocol</span><span id="srv-protocol" class="console-font">--</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Players Tab -->
+            <div id="players-tab" class="hidden fade-in">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Online Players</h2>
+                    <button onclick="sendCmd('playerlist')" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded transition">Refresh</button>
+                </div>
+                <div class="flex gap-6">
+                    <div id="player-list" class="space-y-2 flex-1 min-w-0">
+                        <p class="text-slate-500 italic text-sm">Waiting for player data...</p>
+                    </div>
+                    <!-- Player Detail Panel -->
+                    <div id="player-detail" class="hidden w-80 shrink-0">
+                        <div class="t-card rounded-xl border p-5 sticky top-6">
+                            <button onclick="closePlayerDetail()" class="absolute top-3 right-3 text-slate-500 hover:text-slate-300 text-lg">&times;</button>
+                            <div class="flex flex-col items-center text-center mb-4">
+                                <img id="pd-avatar" src="" alt="" class="w-20 h-20 rounded-full bg-slate-700 mb-3 border-2 border-slate-600">
+                                <h3 id="pd-name" class="font-semibold text-base"></h3>
+                                <p id="pd-steamid" class="text-xs text-slate-500 console-font mt-0.5"></p>
+                            </div>
+                            <div class="space-y-2 text-sm mb-4">
+                                <div class="flex justify-between"><span class="t-muted">Ping</span><span id="pd-ping" class="console-font"></span></div>
+                                <div class="flex justify-between"><span class="t-muted">IP Address</span><span id="pd-ip" class="console-font"></span></div>
+                                <div class="flex justify-between"><span class="t-muted">Connected</span><span id="pd-connected" class="console-font"></span></div>
+                                <div class="flex justify-between"><span class="t-muted">Health</span><span id="pd-health" class="console-font"></span></div>
+                                <div class="flex justify-between"><span class="t-muted">Violations</span><span id="pd-violations" class="console-font"></span></div>
+                            </div>
+                            <div id="pd-extra" class="space-y-2 text-sm mb-4 border-t border-slate-700/50 pt-3"></div>
+                            <div class="space-y-2">
+                                <a id="pd-steam-link" href="#" target="_blank" class="block w-full text-center bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm transition">View Steam Profile</a>
+                                <a id="pd-battlemetrics-link" href="#" target="_blank" class="block w-full text-center bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm transition">View on Battlemetrics</a>
+                                <div class="flex gap-2 mt-2">
+                                    <button id="pd-kick-btn" class="flex-1 text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-2 rounded transition">Kick</button>
+                                    <button id="pd-ban-btn" class="flex-1 text-xs bg-red-700/50 hover:bg-red-600 px-2 py-2 rounded transition">Ban</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Console Tab -->
+            <div id="console-tab" class="hidden fade-in">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Server Console</h2>
+                    <div class="flex gap-2">
+                        <button onclick="clearConsole()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded transition">Clear</button>
+                        <button onclick="toggleAutoScroll()" id="autoscroll-btn" class="text-xs bg-sky-700 hover:bg-sky-600 px-3 py-1.5 rounded transition">Auto-scroll: ON</button>
+                    </div>
+                </div>
+                <div id="console-output" class="console-box console-font p-4 rounded-lg border border-slate-800 text-xs leading-relaxed"></div>
+                <div class="flex gap-2 mt-3">
+                    <span class="text-slate-500 self-center console-font text-sm">&gt;</span>
+                    <input type="text" id="cmd-input"
+                        class="flex-1 bg-slate-900 border border-slate-700 px-3 py-2.5 rounded console-font text-sm focus:outline-none focus:border-sky-500 transition"
+                        placeholder="Type RCON command..." autocomplete="off" spellcheck="false">
+                    <button onclick="sendFromInput()" class="bg-sky-600 px-5 py-2.5 rounded hover:bg-sky-500 text-sm font-medium transition">Send</button>
+                </div>
+                <div class="text-xs text-slate-600 mt-1 ml-5">Use Up/Down arrows for command history</div>
+            </div>
+
+            <!-- Inventory Give Tab -->
+            <div id="inventory-tab" class="hidden fade-in">
+                <h2 class="text-lg font-semibold mb-4">Give Items</h2>
+                <div class="flex gap-6">
+                    <!-- Give Form -->
+                    <div class="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50 w-96 shrink-0">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Player</label>
+                                <select id="target-player" class="w-full bg-slate-900 border border-slate-700 px-3 py-2.5 rounded text-sm focus:outline-none focus:border-sky-500 appearance-none cursor-pointer">
+                                    <option value="">Select a player...</option>
+                                </select>
+                            </div>
+                            <div class="relative">
+                                <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Item</label>
+                                <input type="text" id="item-search" class="w-full bg-slate-900 border border-slate-700 px-3 py-2.5 rounded text-sm focus:outline-none focus:border-sky-500" placeholder="Search items..." autocomplete="off">
+                                <input type="hidden" id="item-id">
+                                <div id="item-dropdown" class="hidden absolute z-50 left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-lg max-h-64 overflow-y-auto shadow-xl"></div>
+                                <div id="item-selected" class="hidden mt-2 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 rounded px-3 py-2 text-xs">
+                                    <div class="flex-1">
+                                        <span id="item-sel-name" class="text-slate-200 font-medium"></span>
+                                        <span id="item-sel-short" class="text-slate-500 ml-2"></span>
+                                    </div>
+                                    <span id="item-sel-stack" class="text-slate-600"></span>
+                                    <button onclick="clearItemSelection()" class="text-slate-500 hover:text-red-400 ml-1">&times;</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Amount</label>
+                                <input type="number" id="item-amount" class="w-full bg-slate-900 border border-slate-700 px-3 py-2.5 rounded text-sm focus:outline-none focus:border-sky-500" value="1" min="1">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="addToQueue()" class="flex-1 bg-sky-600 py-2.5 rounded hover:bg-sky-500 text-sm font-medium transition">+ Add to Queue</button>
+                                <button onclick="giveItem()" class="flex-1 bg-green-600 py-2.5 rounded hover:bg-green-500 text-sm font-medium transition">Give Now</button>
+                            </div>
+                        </div>
+
+                        <!-- Item Queue -->
+                        <div id="item-queue-section" class="mt-5 hidden">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-slate-400 uppercase tracking-wider">Queued Items</span>
+                                <button onclick="clearQueue()" class="text-xs text-red-400 hover:text-red-300 transition">Clear All</button>
+                            </div>
+                            <div id="item-queue-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
+                            <button onclick="sendQueue()" class="w-full mt-3 bg-green-600 py-2.5 rounded hover:bg-green-500 text-sm font-medium transition flex items-center justify-center gap-2">
+                                <span>Send All</span>
+                                <span id="queue-count-badge" class="bg-green-800 text-green-200 text-xs px-2 py-0.5 rounded-full">0</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Item Browser -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-3 mb-3">
+                            <input type="text" id="item-browser-search" class="flex-1 bg-slate-900 border border-slate-700 px-3 py-2 rounded text-sm focus:outline-none focus:border-sky-500" placeholder="Browse all items...">
+                            <span id="item-browser-count" class="text-xs text-slate-500 whitespace-nowrap">0 items</span>
+                        </div>
+                        <div id="item-browser-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Container -->
+            <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-2"></div>
+        </main>
+    </div>
+    </div><!-- end #dashboard -->
+
+    <script>
+        // ==========================================
+        // Direct RCON WebSocket connection
+        // (same approach as the reference webrcon project)
+        // ==========================================
+
+        var socket = null;
+        var serverAddr = '';
+        var rconHost = '';
+        var rconPort = '';
+        var rconPassword = '';
+        var autoScroll = true;
+        var cmdHistory = [];
+        var cmdHistoryIndex = -1;
+        var currentPlayers = [];
+        var callbacks = {};
+        var lastIdentifier = 1001;
+        var consoleOutput = document.getElementById('console-output');
+
+        // ========== LOGIN ==========
+        function getSavedServers() {
+            try { return JSON.parse(localStorage.getItem('rcon_saved_servers') || '[]'); } catch(e) { return []; }
+        }
+        function saveSavedServers(list) {
+            localStorage.setItem('rcon_saved_servers', JSON.stringify(list));
+        }
+        function renderSavedServers() {
+            var servers = getSavedServers();
+            var section = document.getElementById('saved-servers-section');
+            var list = document.getElementById('saved-servers-list');
+            if (!servers.length) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            list.innerHTML = '';
+            servers.forEach(function(s, i) {
+                var el = document.createElement('div');
+                el.className = 'flex items-center gap-2 group';
+                el.innerHTML = '<button onclick="loadSavedServer(' + i + ')" class="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-800/60 border border-slate-700/40 hover:border-sky-500/50 hover:bg-slate-800 transition text-left">' +
+                    '<span class="text-base">\uD83D\uDDA5\uFE0F</span>' +
+                    '<div class="min-w-0 flex-1">' +
+                    '<div class="text-sm font-medium truncate" style="color:var(--text-primary)">' + escapeHtml(s.label || s.host) + '</div>' +
+                    '<div class="text-[11px]" style="color:var(--text-muted)">' + escapeHtml(s.host) + ':' + escapeHtml(s.port) + ' &bull; ' + (s.password ? '\uD83D\uDD12 saved' : '\uD83D\uDD13 no password') + '</div>' +
+                    '</div></button>' +
+                    '<button onclick="deleteSavedServer(' + i + ')" class="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-900/30 text-red-400/60 hover:text-red-400 transition" title="Remove">\u2715</button>';
+                list.appendChild(el);
+            });
+        }
+        function escapeHtml(str) {
+            var d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+        }
+        function loadSavedServer(idx) {
+            var servers = getSavedServers();
+            var s = servers[idx];
+            if (!s) return;
+            document.getElementById('login-host').value = s.host || '';
+            document.getElementById('login-port').value = s.port || '28016';
+            document.getElementById('login-password').value = s.password || '';
+        }
+        function deleteSavedServer(idx) {
+            var servers = getSavedServers();
+            servers.splice(idx, 1);
+            saveSavedServers(servers);
+            renderSavedServers();
+        }
+        function clearAllSavedServers() {
+            saveSavedServers([]);
+            renderSavedServers();
+        }
+        function saveCurrentServer(host, port, password, label) {
+            var servers = getSavedServers();
+            var existing = -1;
+            for (var i = 0; i < servers.length; i++) {
+                if (servers[i].host === host && servers[i].port === port) { existing = i; break; }
+            }
+            var entry = { host: host, port: port, password: password, label: label || host };
+            if (existing >= 0) {
+                servers[existing] = entry;
+            } else {
+                servers.unshift(entry);
+            }
+            if (servers.length > 10) servers = servers.slice(0, 10);
+            saveSavedServers(servers);
+        }
+
+        // Migrate old single-server save & init
+        (function() {
+            var old = localStorage.getItem('rcon_server');
+            if (old) {
+                try {
+                    var s = JSON.parse(old);
+                    if (s.host) {
+                        var servers = getSavedServers();
+                        var exists = servers.some(function(sv) { return sv.host === s.host && sv.port === s.port; });
+                        if (!exists) servers.unshift({ host: s.host, port: s.port, password: '', label: s.host });
+                        saveSavedServers(servers);
+                    }
+                } catch(e) {}
+                localStorage.removeItem('rcon_server');
+            }
+            renderSavedServers();
+            ['login-host', 'login-port', 'login-password'].forEach(function(id) {
+                document.getElementById(id).addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') doLogin();
+                });
+            });
+        })();
+
+        function doLogin() {
+            var host = document.getElementById('login-host').value.trim();
+            var port = document.getElementById('login-port').value.trim();
+            var password = document.getElementById('login-password').value;
+            var errEl = document.getElementById('login-error');
+            errEl.classList.add('hidden');
+
+            if (!host) { showLoginError('Server host is required'); return; }
+            if (!port) { showLoginError('RCON port is required'); return; }
+            if (!password) { showLoginError('RCON password is required'); return; }
+
+            // Save to known servers list
+            saveCurrentServer(host, port, password, host);
+
+            // Store credentials in memory
+            rconHost = host;
+            rconPort = port;
+            rconPassword = password;
+            serverAddr = host + ':' + port;
+
+            // Update UI
+            document.getElementById('server-addr').textContent = serverAddr;
+            document.getElementById('overview-server').textContent = serverAddr;
+
+            // Disable button while connecting
+            var btn = document.getElementById('login-btn');
+            btn.textContent = 'Connecting...';
+            btn.disabled = true;
+
+            connectRcon(host, port, password);
+        }
+
+        function showLoginError(msg) {
+            var errEl = document.getElementById('login-error');
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+
+        function showLoginScreen() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            var btn = document.getElementById('login-btn');
+            btn.textContent = 'Connect';
+            btn.disabled = false;
+            renderSavedServers();
+        }
+
+        // Fetch credentials from backend and auto-connect
+        function init() {
+            // init is called after login now — connection happens from doLogin
+        }
+
+        // Connect directly to Rust RCON via browser WebSocket
+        function connectRcon(host, port, password) {
+            if (socket) {
+                try { socket.close(); } catch(e) {}
+            }
+
+            var url = 'ws://' + host + ':' + port + '/' + password;
+            appendConsole('Connecting to ' + host + ':' + port + '...', 'text-yellow-400');
+
+            socket = new WebSocket(url);
+
+            socket.onopen = function() {
+                updateConnectionStatus(true);
+                appendConsole('Connected to RCON', 'text-green-400');
+                showDashboard();
+
+                // Fetch console history
+                setTimeout(function() {
+                    sendRequest('console.tail 512', function(data) {
+                        var msg = (data.Message || '').trim();
+                        try {
+                            var lines = JSON.parse(msg);
+                            if (Array.isArray(lines)) {
+                                lines.forEach(function(line) {
+                                    handleRconMessage(line);
+                                    // Track max time for dedup with poller
+                                    if ((line.Time || 0) > lastTailTime) lastTailTime = line.Time;
+                                });
+                            }
+                        } catch(e) {}
+                    });
+                    // Request initial data via targeted requests (won't pollute console)
+                    refreshServerInfoSilent();
+                    sendRequest('playerlist', function(data) {
+                        var msg = (data.Message || '').trim();
+                        try {
+                            var parsed = JSON.parse(msg);
+                            if (Array.isArray(parsed)) updatePlayerList(parsed);
+                        } catch(e) {}
+                    });
+                    fetchWorldInfo();
+                }, 500);
+            };
+
+            socket.onmessage = function(e) {
+                var data;
+                try {
+                    data = JSON.parse(e.data);
+                } catch(err) {
+                    appendConsole(e.data, 'text-slate-400');
+                    return;
+                }
+
+                // Check if this is a targeted response (identifier > 1000)
+                if (data.Identifier > 1000 && callbacks[data.Identifier]) {
+                    var cbMsg = (data.Message || '').trim();
+                    // Skip plugin noise (e.g. Discord Logger "RCON command ... is run from")
+                    if (cbMsg.indexOf('RCON command') !== -1 && cbMsg.indexOf('is run from') !== -1) {
+                        // Don't delete callback — still waiting for real response
+                        return;
+                    }
+                    callbacks[data.Identifier](data);
+                    delete callbacks[data.Identifier];
+                    return;
+                }
+
+                // Generic message - handle it
+                handleRconMessage(data);
+            };
+
+            socket.onclose = function(e) {
+                updateConnectionStatus(false);
+                // Only auto-reconnect if dashboard is visible (not on login screen / manual disconnect)
+                if (!document.getElementById('dashboard').classList.contains('hidden')) {
+                    appendConsole('Disconnected (code: ' + e.code + '). Reconnecting in 5s...', 'text-red-400');
+                    setTimeout(function() {
+                        if (rconHost && rconPort && rconPassword && !document.getElementById('dashboard').classList.contains('hidden')) {
+                            connectRcon(rconHost, rconPort, rconPassword);
+                        }
+                    }, 5000);
+                }
+            };
+
+            socket.onerror = function(err) {
+                appendConsole('WebSocket error', 'text-red-400');
+                updateConnectionStatus(false);
+                var btn = document.getElementById('login-btn');
+                btn.textContent = 'Connect';
+                btn.disabled = false;
+                showLoginError('Connection failed — check host, port, and password');
+            };
+        }
+
+        function handleRconMessage(data) {
+            var msg = data.Message || '';
+            var type = data.Type || '';
+
+            // Skip RCON echo messages (like the reference project)
+            if (msg.indexOf('[rcon]') === 0 || msg.indexOf('[rcon] ') === 0) {
+                return;
+            }
+
+            // Skip Discord Logger plugin noise
+            if (msg.indexOf('[Discord Logger]') !== -1) {
+                return;
+            }
+
+            // Silently handle JSON data (serverinfo, playerlist) that comes via broadcast
+            if (msg && msg.charAt(0) === '{' || msg.charAt(0) === '[') {
+                try {
+                    var parsed = JSON.parse(msg);
+                    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].SteamID) {
+                        updatePlayerList(parsed);
+                        return;
+                    }
+                    if (Array.isArray(parsed) && parsed.length === 0) {
+                        updatePlayerList([]);
+                        return;
+                    }
+                    if (parsed && typeof parsed === 'object' && parsed.Framerate !== undefined && parsed.EntityCount !== undefined) {
+                        lastServerInfo = parsed;
+                        updateStatsUI(parsed);
+                        updateOverviewFromInfo(parsed);
+                        return;
+                    }
+                } catch(e) {}
+            }
+
+            // Color by message type (matching reference project: Generic, Log, Error, Warning all display)
+            var colorClass = 'text-slate-300';
+            if (type === 'Error') colorClass = 'text-red-400';
+            else if (type === 'Warning') colorClass = 'text-yellow-400';
+            else if (type === 'Chat') colorClass = 'text-green-400';
+            else if (type === 'Log') colorClass = 'text-slate-400';
+
+            if (msg) appendConsole(msg, colorClass);
+        }
+
+        // ========== CONNECTION STATUS ==========
+        function updateConnectionStatus(connected) {
+            var dot = document.getElementById('status-dot');
+            var text = document.getElementById('status-text');
+            var badge = document.getElementById('status-badge');
+            var overview = document.getElementById('overview-connection');
+
+            if (connected) {
+                dot.className = 'w-2 h-2 rounded-full bg-green-500';
+                text.textContent = 'Connected';
+                text.className = 'text-green-300';
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-900/50 border border-green-800/50 text-sm';
+                overview.textContent = 'Connected';
+                overview.className = 'text-lg font-semibold text-green-400';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500 pulse-dot';
+                text.textContent = 'Disconnected';
+                text.className = 'text-red-300';
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-900/50 border border-red-800/50 text-sm';
+                overview.textContent = 'Disconnected';
+                overview.className = 'text-lg font-semibold text-red-400';
+            }
+        }
+
+        // ========== SEND COMMANDS ==========
+        function sendCmd(command) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                appendConsole('Error: Not connected to RCON', 'text-red-400');
+                return;
+            }
+
+            var packet = {
+                Identifier: -1,
+                Message: command,
+                Name: "WebRcon"
+            };
+            socket.send(JSON.stringify(packet));
+        }
+
+        // Send command with callback (like rconService.Request in the reference project)
+        function sendRequest(command, callback) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+            lastIdentifier++;
+            callbacks[lastIdentifier] = callback;
+
+            var packet = {
+                Identifier: lastIdentifier,
+                Message: command,
+                Name: "WebRcon"
+            };
+            socket.send(JSON.stringify(packet));
+        }
+
+        function sendFromInput() {
+            var input = document.getElementById('cmd-input');
+            var cmd = input.value.trim();
+            if (!cmd) return;
+
+            appendConsole('> ' + cmd, 'text-sky-400');
+            sendCmd(cmd);
+
+            if (cmdHistory[cmdHistory.length - 1] !== cmd) {
+                cmdHistory.push(cmd);
+            }
+            cmdHistoryIndex = cmdHistory.length;
+            input.value = '';
+        }
+
+        // ========== CONSOLE ==========
+        function appendConsole(msg, colorClass) {
+            colorClass = colorClass || 'text-slate-300';
+            var div = document.createElement('div');
+            div.className = 'py-0.5 ' + colorClass;
+            var time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            div.innerHTML = '<span class="text-slate-600 mr-2">[' + time + ']</span>' + escapeHtml(msg);
+            consoleOutput.appendChild(div);
+
+            while (consoleOutput.children.length > 500) {
+                consoleOutput.removeChild(consoleOutput.firstChild);
+            }
+
+            if (autoScroll) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function clearConsole() { consoleOutput.innerHTML = ''; }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            var btn = document.getElementById('autoscroll-btn');
+            btn.textContent = 'Auto-scroll: ' + (autoScroll ? 'ON' : 'OFF');
+            btn.className = 'text-xs ' + (autoScroll ? 'bg-sky-700 hover:bg-sky-600' : 'bg-slate-700 hover:bg-slate-600') + ' px-3 py-1.5 rounded transition';
+        }
+
+        // ========== PLAYERS ==========
+        function updatePlayerList(players) {
+            currentPlayers = players;
+            var count = players.length;
+            document.getElementById('player-count-badge').textContent = count;
+            document.getElementById('overview-players').textContent = count;
+
+            // Update player dropdown on Give Items tab
+            var sel = document.getElementById('target-player');
+            var prev = sel.value;
+            sel.innerHTML = '<option value="">Select a player...</option>' +
+                players.map(function(p) {
+                    var name = p.DisplayName || 'Unknown';
+                    return '<option value="' + (p.SteamID || '') + '">' + escapeHtml(name) + ' (' + (p.SteamID || '') + ')</option>';
+                }).join('');
+            if (prev) sel.value = prev;
+
+            var list = document.getElementById('player-list');
+            if (count === 0) {
+                list.innerHTML = '<p class="text-slate-500 italic text-sm">No players online.</p>';
+                return;
+            }
+
+            list.innerHTML = players.map(function(p, idx) {
+                var name = escapeHtml(p.DisplayName || 'Unknown');
+                var steamId = p.SteamID || '';
+                var ping = p.Ping || 0;
+                var pingColor = ping < 100 ? 'text-green-500' : (ping < 200 ? 'text-yellow-500' : 'text-red-500');
+                var ip = p.Address ? p.Address.split(':')[0] : '';
+                var initial = (p.DisplayName || '?')[0].toUpperCase();
+
+                return '<div class="player-card flex justify-between items-center bg-slate-800/50 border border-slate-700/30 p-3 rounded-lg transition cursor-pointer hover:bg-slate-700/50" onclick="showPlayerDetail(' + idx + ')">' +
+                    '<div class="flex items-center gap-3">' +
+                        '<img src="https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_medium.jpg" data-steamid="' + steamId + '" class="player-avatar w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                        '<div class="w-8 h-8 rounded-full bg-slate-700 items-center justify-center text-xs font-bold text-sky-400" style="display:none">' + initial + '</div>' +
+                        '<div>' +
+                            '<span class="font-medium text-sm">' + name + '</span>' +
+                            '<div class="text-xs text-slate-500 console-font">' + steamId + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-3">' +
+                        '<span class="text-xs ' + pingColor + ' console-font">' + ping + 'ms</span>' +
+                        '<span class="text-xs text-slate-500">' + ip + '</span>' +
+                        '<div class="flex gap-1" onclick="event.stopPropagation()">' +
+                            '<button onclick="kickPlayer(\'' + steamId + '\')" class="text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-1 rounded transition">Kick</button>' +
+                            '<button onclick="banPlayer(\'' + steamId + '\', \'' + name + '\')" class="text-xs bg-red-700/50 hover:bg-red-600 px-2 py-1 rounded transition">Ban</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            // Load Steam avatars
+            loadSteamAvatars(players);
+        }
+
+        function kickPlayer(steamId) {
+            sendCmd('kick "' + steamId + '" "Kicked by admin"');
+            appendConsole('Kicked ' + steamId, 'text-yellow-400');
+            showToast('Kicked player ' + steamId, 'success');
+        }
+
+        function banPlayer(steamId, name) {
+            if (confirm('Ban ' + name + '?')) {
+                sendCmd('ban "' + steamId + '" "Banned by admin"');
+                appendConsole('Banned ' + steamId, 'text-red-400');
+                showToast('Banned ' + name, 'success');
+            }
+        }
+
+        // ========== PLAYER DETAIL PANEL ==========
+        var steamAvatarCache = {};
+        var steamProfileCache = {};
+
+        function loadSteamAvatars(players) {
+            players.forEach(function(p) {
+                if (!p.SteamID || steamProfileCache[p.SteamID]) return;
+                fetchSteamProfile(p.SteamID);
+            });
+        }
+
+        function fetchSteamProfile(steamId) {
+            if (steamProfileCache[steamId]) return;
+            fetch('/api/steam/' + steamId)
+                .then(function(r) { return r.json(); })
+                .then(function(profile) {
+                    steamProfileCache[steamId] = profile;
+                    if (profile.avatarMedium) {
+                        steamAvatarCache[steamId] = profile.avatarMedium;
+                        var imgs = document.querySelectorAll('img[data-steamid="' + steamId + '"]');
+                        imgs.forEach(function(img) { img.src = profile.avatarMedium; });
+                    }
+                    // Update detail panel if it's showing this player
+                    var pdSteamId = document.getElementById('pd-steamid');
+                    if (pdSteamId && pdSteamId.textContent === steamId) {
+                        populateDetailFromProfile(profile);
+                    }
+                })
+                .catch(function() {});
+        }
+
+        function populateDetailFromProfile(profile) {
+            if (profile.avatarFull) {
+                document.getElementById('pd-avatar').src = profile.avatarFull;
+            }
+            var extraEl = document.getElementById('pd-extra');
+            if (!extraEl) return;
+            var html = '';
+            if (profile.realName) html += '<div class="flex justify-between"><span class="t-muted">Real Name</span><span class="console-font">' + escapeHtml(profile.realName) + '</span></div>';
+            if (profile.location) html += '<div class="flex justify-between"><span class="t-muted">Location</span><span class="console-font">' + escapeHtml(profile.location) + '</span></div>';
+            if (profile.memberSince) html += '<div class="flex justify-between"><span class="t-muted">Member Since</span><span class="console-font">' + escapeHtml(profile.memberSince) + '</span></div>';
+            if (profile.onlineState) {
+                var stateColor = profile.onlineState === 'online' ? 'text-green-400' : profile.onlineState === 'in-game' ? 'text-green-400' : 'text-slate-400';
+                html += '<div class="flex justify-between"><span class="t-muted">Steam Status</span><span class="console-font ' + stateColor + '">' + escapeHtml(profile.onlineState) + '</span></div>';
+            }
+            if (profile.vacBanned) html += '<div class="flex justify-between"><span class="t-muted">VAC Status</span><span class="console-font text-red-400">BANNED</span></div>';
+            if (profile.isPrivate) html += '<div class="text-xs text-slate-500 italic mt-1">Profile is private</div>';
+            extraEl.innerHTML = html;
+        }
+
+        function showPlayerDetail(playerIndex) {
+            var p = currentPlayers[playerIndex];
+            if (!p) return;
+
+            var panel = document.getElementById('player-detail');
+            panel.classList.remove('hidden');
+
+            var steamId = p.SteamID || '';
+            var name = p.DisplayName || 'Unknown';
+            var ping = p.Ping || 0;
+            var ip = p.Address ? p.Address.split(':')[0] : 'N/A';
+            var connected = p.ConnectedSeconds || 0;
+            var health = p.Health != null ? Math.round(p.Health) : '--';
+            var violations = p.CurrentLevel != null ? p.CurrentLevel : (p.VoicelevelViolations || 0);
+
+            // Format connected time
+            var ch = Math.floor(connected / 3600);
+            var cm = Math.floor((connected % 3600) / 60);
+            var connectedStr = ch > 0 ? ch + 'h ' + cm + 'm' : cm + 'm';
+
+            // Ping color
+            var pingColor = ping < 100 ? 'text-green-400' : (ping < 200 ? 'text-yellow-400' : 'text-red-400');
+
+            document.getElementById('pd-name').textContent = name;
+            document.getElementById('pd-steamid').textContent = steamId;
+            document.getElementById('pd-ping').innerHTML = '<span class="' + pingColor + '">' + ping + 'ms</span>';
+            document.getElementById('pd-ip').textContent = ip;
+            document.getElementById('pd-connected').textContent = connectedStr;
+            document.getElementById('pd-health').innerHTML = health !== '--' ? '<span class="' + (health > 50 ? 'text-green-400' : health > 20 ? 'text-yellow-400' : 'text-red-400') + '">' + health + '</span>' : '--';
+            document.getElementById('pd-violations').textContent = violations;
+
+            // Avatar - use cached or default
+            var avatar = document.getElementById('pd-avatar');
+            if (steamAvatarCache[steamId]) {
+                avatar.src = steamAvatarCache[steamId].replace('_medium', '_full');
+            } else {
+                avatar.src = 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg';
+            }
+
+            // Clear extra info then populate from cache or fetch
+            document.getElementById('pd-extra').innerHTML = '<div class="text-xs text-slate-500 italic">Loading Steam profile...</div>';
+            if (steamProfileCache[steamId]) {
+                populateDetailFromProfile(steamProfileCache[steamId]);
+            } else {
+                fetchSteamProfile(steamId);
+            }
+
+            // Links
+            document.getElementById('pd-steam-link').href = 'https://steamcommunity.com/profiles/' + steamId;
+            document.getElementById('pd-battlemetrics-link').href = 'https://www.battlemetrics.com/rcon/players?filter%5Bsearch%5D=' + steamId;
+
+            // Kick/Ban buttons
+            document.getElementById('pd-kick-btn').onclick = function() { kickPlayer(steamId); };
+            document.getElementById('pd-ban-btn').onclick = function() { banPlayer(steamId, name); };
+
+            // Highlight selected player in list
+            document.querySelectorAll('#player-list .player-card').forEach(function(card, i) {
+                card.classList.toggle('ring-1', i === playerIndex);
+                card.classList.toggle('ring-sky-500/50', i === playerIndex);
+            });
+        }
+
+        function closePlayerDetail() {
+            document.getElementById('player-detail').classList.add('hidden');
+            document.querySelectorAll('#player-list .player-card').forEach(function(card) {
+                card.classList.remove('ring-1', 'ring-sky-500/50');
+            });
+        }
+
+        // ========== TABS ==========
+        function switchTab(tab) {
+            var tabs = ['overview', 'players', 'console', 'inventory'];
+            tabs.forEach(function(t) {
+                var el = document.getElementById(t + '-tab');
+                if (el) el.classList.add('hidden');
+            });
+            var target = document.getElementById(tab + '-tab');
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.add('fade-in');
+            }
+            document.querySelectorAll('.sidebar-btn[data-tab]').forEach(function(btn) {
+                btn.classList.remove('active');
+                if (btn.dataset.tab === tab) btn.classList.add('active');
+            });
+            if (tab === 'console') document.getElementById('cmd-input').focus();
+            if (tab === 'overview') refreshServerInfoSilent();
+        }
+
+        // ========== ITEMS DATABASE ==========
+        var allItems = [];
+        var itemsLoaded = false;
+
+        function loadItems() {
+            fetch('/items.json')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    allItems = data;
+                    itemsLoaded = true;
+                    renderItemBrowser('');
+                    document.getElementById('item-browser-count').textContent = allItems.length + ' items';
+                })
+                .catch(function(err) {
+                    console.error('Failed to load items:', err);
+                });
+        }
+        loadItems();
+
+        // ========== ITEM SEARCH DROPDOWN (form input) ==========
+        var itemSearchInput = document.getElementById('item-search');
+        var itemDropdown = document.getElementById('item-dropdown');
+        var itemSearchTimeout = null;
+
+        itemSearchInput.addEventListener('input', function() {
+            clearTimeout(itemSearchTimeout);
+            itemSearchTimeout = setTimeout(function() {
+                var q = itemSearchInput.value.trim().toLowerCase();
+                if (q.length < 1) { itemDropdown.classList.add('hidden'); return; }
+                var matches = allItems.filter(function(item) {
+                    return item.name.toLowerCase().indexOf(q) !== -1 ||
+                           item.shortname.toLowerCase().indexOf(q) !== -1 ||
+                           String(item.itemid).indexOf(q) !== -1;
+                }).slice(0, 30);
+                if (matches.length === 0) {
+                    itemDropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">No items found</div>';
+                } else {
+                    itemDropdown.innerHTML = matches.map(function(item) {
+                        return '<button type="button" onclick="selectItem(\'' + escapeAttr(item.shortname) + '\', \'' + escapeAttr(item.name) + '\', ' + item.stacksize + ')" class="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-3 text-sm border-b border-slate-800/50 last:border-0 transition">' +
+                            '<div class="flex-1 min-w-0">' +
+                                '<div class="text-slate-200 truncate">' + escapeHtml(item.name) + '</div>' +
+                                '<div class="text-xs text-slate-500 truncate">' + escapeHtml(item.shortname) + '</div>' +
+                            '</div>' +
+                            '<span class="text-xs text-slate-600 shrink-0">x' + item.stacksize + '</span>' +
+                        '</button>';
+                    }).join('');
+                }
+                itemDropdown.classList.remove('hidden');
+            }, 120);
+        });
+
+        itemSearchInput.addEventListener('focus', function() {
+            if (itemSearchInput.value.trim().length >= 1) {
+                itemSearchInput.dispatchEvent(new Event('input'));
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#item-search') && !e.target.closest('#item-dropdown')) {
+                itemDropdown.classList.add('hidden');
+            }
+        });
+
+        function escapeAttr(s) {
+            return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function selectItem(shortname, name, stacksize) {
+            document.getElementById('item-id').value = shortname;
+            document.getElementById('item-search').value = '';
+            itemDropdown.classList.add('hidden');
+            // Show selection card
+            document.getElementById('item-selected').classList.remove('hidden');
+            document.getElementById('item-sel-name').textContent = name;
+            document.getElementById('item-sel-short').textContent = shortname;
+            document.getElementById('item-sel-stack').textContent = 'Stack: ' + stacksize;
+            document.getElementById('item-amount').max = stacksize;
+        }
+
+        function clearItemSelection() {
+            document.getElementById('item-id').value = '';
+            document.getElementById('item-selected').classList.add('hidden');
+            document.getElementById('item-search').value = '';
+            document.getElementById('item-amount').removeAttribute('max');
+        }
+
+        // ========== ITEM QUEUE ==========
+        var itemQueue = [];
+
+        function addToQueue() {
+            var item = document.getElementById('item-id').value.trim();
+            var amount = parseInt(document.getElementById('item-amount').value) || 1;
+            if (!item) {
+                showToast('Please select an item first', 'error');
+                return;
+            }
+            var nameEl = document.getElementById('item-sel-name');
+            var displayName = nameEl ? nameEl.textContent : item;
+            itemQueue.push({ shortname: item, name: displayName, amount: amount });
+            renderQueue();
+            clearItemSelection();
+            document.getElementById('item-amount').value = 1;
+            showToast('Added ' + amount + 'x ' + displayName + ' to queue', 'info');
+        }
+
+        function removeFromQueue(index) {
+            itemQueue.splice(index, 1);
+            renderQueue();
+        }
+
+        function clearQueue() {
+            itemQueue = [];
+            renderQueue();
+        }
+
+        function renderQueue() {
+            var section = document.getElementById('item-queue-section');
+            var list = document.getElementById('item-queue-list');
+            var badge = document.getElementById('queue-count-badge');
+            if (itemQueue.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            badge.textContent = itemQueue.length;
+            list.innerHTML = itemQueue.map(function(q, i) {
+                return '<div class="flex items-center justify-between bg-slate-900/80 border border-slate-700/50 rounded px-3 py-2 text-xs">' +
+                    '<div class="flex-1 min-w-0"><span class="text-slate-200 font-medium">' + escapeHtml(q.name) + '</span>' +
+                    '<span class="text-slate-500 ml-2">' + escapeHtml(q.shortname) + '</span></div>' +
+                    '<span class="text-sky-400 font-medium mx-2">x' + q.amount + '</span>' +
+                    '<button onclick="removeFromQueue(' + i + ')" class="text-slate-500 hover:text-red-400 transition">&times;</button></div>';
+            }).join('');
+        }
+
+        function sendQueue() {
+            var player = document.getElementById('target-player').value.trim();
+            if (!player) {
+                showToast('Please select a player first', 'error');
+                return;
+            }
+            if (itemQueue.length === 0) {
+                showToast('Queue is empty', 'error');
+                return;
+            }
+            var count = itemQueue.length;
+            var summary = [];
+            itemQueue.forEach(function(q) {
+                sendCmd('inventory.giveto "' + player + '" "' + q.shortname + '" ' + q.amount);
+                summary.push(q.amount + 'x ' + q.name);
+            });
+            showToast('Sent ' + count + ' item(s) to ' + player + ':\n' + summary.join(', '), 'success');
+            appendConsole('Gave ' + count + ' item(s) to ' + player + ': ' + summary.join(', '), 'text-green-400');
+            itemQueue = [];
+            renderQueue();
+        }
+
+        function giveItem() {
+            var player = document.getElementById('target-player').value.trim();
+            var item = document.getElementById('item-id').value.trim();
+            var amount = parseInt(document.getElementById('item-amount').value) || 1;
+            if (!player || !item) {
+                showToast('Player and Item are required', 'error');
+                return;
+            }
+            var nameEl = document.getElementById('item-sel-name');
+            var displayName = nameEl ? nameEl.textContent : item;
+            sendCmd('inventory.giveto "' + player + '" "' + item + '" ' + amount);
+            showToast('Gave ' + amount + 'x ' + displayName + ' to ' + player, 'success');
+            appendConsole('Gave ' + amount + 'x ' + item + ' to ' + player, 'text-green-400');
+        }
+
+        // ========== TOAST NOTIFICATIONS ==========
+        function showToast(message, type) {
+            var container = document.getElementById('toast-container');
+            var toast = document.createElement('div');
+            var colors = {
+                success: 'border-green-500/50 bg-green-950/90 text-green-200',
+                error: 'border-red-500/50 bg-red-950/90 text-red-200',
+                info: 'border-sky-500/50 bg-sky-950/90 text-sky-200'
+            };
+            var icons = { success: '\u2705', error: '\u274C', info: '\u2139\uFE0F' };
+            toast.className = 'flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm text-sm max-w-sm animate-slide-in ' + (colors[type] || colors.info);
+            toast.innerHTML = '<span class="text-base mt-0.5">' + (icons[type] || icons.info) + '</span>' +
+                '<div class="flex-1 min-w-0"><p class="whitespace-pre-wrap">' + escapeHtml(message) + '</p></div>' +
+                '<button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100 text-lg leading-none mt-0.5">&times;</button>';
+            container.appendChild(toast);
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(function() { toast.remove(); }, 300);
+            }, 4000);
+        }
+
+        // ========== ITEM BROWSER (right panel) ==========
+        var browserSearchInput = document.getElementById('item-browser-search');
+        var browserSearchTimeout = null;
+
+        browserSearchInput.addEventListener('input', function() {
+            clearTimeout(browserSearchTimeout);
+            browserSearchTimeout = setTimeout(function() {
+                renderItemBrowser(browserSearchInput.value.trim().toLowerCase());
+            }, 150);
+        });
+
+        function renderItemBrowser(q) {
+            var list = document.getElementById('item-browser-list');
+            var countEl = document.getElementById('item-browser-count');
+            var filtered = allItems;
+            if (q) {
+                filtered = allItems.filter(function(item) {
+                    return item.name.toLowerCase().indexOf(q) !== -1 ||
+                           item.shortname.toLowerCase().indexOf(q) !== -1 ||
+                           item.description.toLowerCase().indexOf(q) !== -1;
+                });
+            }
+            countEl.textContent = filtered.length + ' items';
+            // Render max 150 for performance
+            var toRender = filtered.slice(0, 150);
+            list.innerHTML = toRender.map(function(item) {
+                return '<button onclick="selectItem(\'' + escapeAttr(item.shortname) + '\', \'' + escapeAttr(item.name) + '\', ' + item.stacksize + ')" class="text-left bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/30 rounded-lg p-3 transition group">' +
+                    '<div class="text-sm text-slate-200 font-medium truncate group-hover:text-white">' + escapeHtml(item.name) + '</div>' +
+                    '<div class="text-xs text-slate-500 truncate mt-0.5">' + escapeHtml(item.shortname) + '</div>' +
+                    '<div class="text-xs text-slate-600 truncate mt-1 leading-snug">' + escapeHtml(item.description.substring(0, 80)) + (item.description.length > 80 ? '...' : '') + '</div>' +
+                    '<div class="flex items-center gap-3 mt-2 text-xs text-slate-600">' +
+                        '<span>ID: ' + item.itemid + '</span>' +
+                        '<span>Stack: ' + item.stacksize + '</span>' +
+                    '</div>' +
+                '</button>';
+            }).join('');
+            if (filtered.length > 150) {
+                list.innerHTML += '<div class="col-span-full text-center text-xs text-slate-600 py-3">Showing 150 of ' + filtered.length + ' — refine your search</div>';
+            }
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="col-span-full text-center text-sm text-slate-500 py-8">No items match "' + escapeHtml(q) + '"</div>';
+            }
+        }
+
+        function refreshServerInfo() {
+            refreshServerInfoSilent();
+            fetchWorldInfo();
+        }
+
+        // Silent refresh: uses sendRequest (Identifier > 1000) so response doesn't go through handleRconMessage
+        function refreshServerInfoSilent() {
+            sendRequest('serverinfo', function(data) {
+                if (!data.Message) return;
+                try {
+                    var info = JSON.parse(data.Message);
+                    lastServerInfo = info;
+                    updateStatsUI(info);
+                    updateOverviewFromInfo(info);
+                } catch(e) {}
+            });
+            fetchGameTime();
+        }
+
+        // ========== GAME TIME (env.time) ==========
+        var cachedGameTime = '--';
+
+        function fetchGameTime() {
+            sendRequest('env.time', function(data) {
+                var msg = (data.Message || '').trim();
+                // env.time returns something like 'env.time: "12.5"' or just a number
+                var match = msg.match(/(\d+\.?\d*)/);
+                if (match) {
+                    var hours = parseFloat(match[1]);
+                    var h = Math.floor(hours);
+                    var m = Math.round((hours - h) * 60);
+                    if (m === 60) { h++; m = 0; }
+                    if (h >= 24) h -= 24;
+                    cachedGameTime = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+                    document.getElementById('stat-gametime').textContent = cachedGameTime;
+                    var cycle = (hours >= 6 && hours < 18) ? 'Daytime' : 'Nighttime';
+                    var icon = (hours >= 6 && hours < 18) ? '\u2600' : '\u263D';
+                    document.getElementById('stat-daycycle').textContent = icon + ' ' + cycle;
+                }
+            });
+        }
+
+        // ========== WORLD INFO (separate commands) ==========
+        var cachedWorldSize = '--';
+        var cachedSeed = '--';
+
+        function fetchWorldInfo() {
+            sendRequest('server.worldsize', function(data) {
+                var msg = (data.Message || '').trim();
+                // Response format: 'server.worldsize: "5000"'
+                var match = msg.match(/server\.worldsize:\s*"?(\d+)"?/i);
+                if (match) {
+                    cachedWorldSize = parseInt(match[1], 10);
+                } else {
+                    // Fallback: just grab first number
+                    var numMatch = msg.match(/(\d+)/);
+                    if (numMatch) cachedWorldSize = parseInt(numMatch[1], 10);
+                    else if (msg) cachedWorldSize = msg;
+                }
+                applyWorldInfo();
+            });
+            sendRequest('server.seed', function(data) {
+                var msg = (data.Message || '').trim();
+                // Response format: 'server.seed: "1157215487"'
+                var match = msg.match(/server\.seed:\s*"?(\d+)"?/i);
+                if (match) {
+                    cachedSeed = parseInt(match[1], 10);
+                } else {
+                    var numMatch = msg.match(/(\d+)/);
+                    if (numMatch) cachedSeed = parseInt(numMatch[1], 10);
+                    else if (msg) cachedSeed = msg;
+                }
+                applyWorldInfo();
+            });
+        }
+
+        function applyWorldInfo() {
+            var el;
+            el = document.getElementById('world-size');
+            if (el) el.textContent = typeof cachedWorldSize === 'number' ? cachedWorldSize.toLocaleString() + 'm' : cachedWorldSize;
+            el = document.getElementById('world-seed');
+            if (el) el.textContent = cachedSeed;
+        }
+
+        function updateOverviewFromInfo(info) {
+            // Update connection status cards
+            var connEl = document.getElementById('overview-connection');
+            if (connEl) { connEl.textContent = 'Connected'; connEl.className = 'text-lg font-bold text-green-400'; }
+            var playersEl = document.getElementById('overview-players');
+            if (playersEl) playersEl.textContent = (info.Players || 0) + ' / ' + (info.MaxPlayers || 0);
+            var serverEl = document.getElementById('overview-server');
+            if (serverEl) serverEl.textContent = info.Hostname || '...';
+            // Update saved server label with actual hostname
+            if (info.Hostname && rconHost && rconPort) {
+                saveCurrentServer(rconHost, rconPort, rconPassword, info.Hostname);
+            }
+            // World size & seed come from dedicated commands
+            applyWorldInfo();
+        }
+
+        // ========== SERVER STATS ==========
+        var fpsHistory = [];
+        var entityHistory = [];
+        var maxHistoryPoints = 60;
+        var lastServerInfo = null;
+        var statsRefreshInterval = null;
+
+        function refreshStats() {
+            sendRequest('serverinfo', function(data) {
+                if (!data.Message) return;
+                try {
+                    var info = JSON.parse(data.Message);
+                    lastServerInfo = info;
+                    updateStatsUI(info);
+                } catch(e) {
+                    appendConsole('Failed to parse serverinfo: ' + e.message, 'text-red-400');
+                }
+            });
+        }
+
+        function updateStatsUI(info) {
+            // Update timestamp
+            var now = new Date().toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('stats-last-update').textContent = 'Updated ' + now;
+
+            // Top KPIs
+            var fps = Math.round(info.Framerate || 0);
+            document.getElementById('stat-fps').textContent = fps;
+            document.getElementById('stat-fps').className = 'text-2xl font-bold ' + (fps >= 20 ? 'text-green-400' : fps >= 10 ? 'text-yellow-400' : 'text-red-400');
+
+            var entities = info.EntityCount || 0;
+            document.getElementById('stat-entities').textContent = entities.toLocaleString();
+
+            // Game time is updated separately via env.time
+            document.getElementById('stat-gametime').textContent = cachedGameTime;
+
+            var online = info.Players || 0;
+            var max = info.MaxPlayers || 0;
+            document.getElementById('stat-players').textContent = online + ' / ' + max;
+            var queued = info.Queued || 0;
+            var joining = info.Joining || 0;
+            document.getElementById('stat-queue').textContent = queued > 0 ? queued + ' queued, ' + joining + ' joining' : joining > 0 ? joining + ' joining' : 'No queue';
+
+            // Performance card
+            document.getElementById('perf-fps').textContent = fps + ' fps';
+            document.getElementById('perf-memory').textContent = (info.Memory || 0).toLocaleString() + ' MB';
+            document.getElementById('perf-collections').textContent = (info.Collections || 0).toLocaleString();
+            document.getElementById('perf-uptime').textContent = formatUptime(info.Uptime || 0);
+
+            // Network card
+            document.getElementById('net-in').textContent = formatBytes(info.NetworkIn || 0) + '/s';
+            document.getElementById('net-out').textContent = formatBytes(info.NetworkOut || 0) + '/s';
+            document.getElementById('net-players').textContent = online;
+            document.getElementById('net-queued').textContent = queued;
+            document.getElementById('net-joining').textContent = joining;
+
+            // World card
+            document.getElementById('world-map').textContent = info.Map || '--';
+            // world-size and world-seed are populated by applyWorldInfo() from dedicated commands
+            applyWorldInfo();
+            document.getElementById('world-entities').textContent = entities.toLocaleString();
+            document.getElementById('world-save').textContent = info.SaveCreatedTime || '--';
+
+            // Server identity card
+            document.getElementById('srv-hostname').textContent = info.Hostname || '--';
+            document.getElementById('srv-hostname').title = info.Hostname || '';
+            document.getElementById('srv-maxplayers').textContent = max;
+            document.getElementById('srv-restarting').textContent = info.Restarting ? 'Yes' : 'No';
+            document.getElementById('srv-restarting').className = 'console-font ' + (info.Restarting ? 'text-red-400' : 'text-green-400');
+            document.getElementById('srv-protocol').textContent = info.Protocol || '--';
+
+            // FPS bar (dynamic scale, no cap)
+            var fpsMax = Math.max(300, fps);
+            var fpsPct = Math.min(100, (fps / fpsMax) * 100);
+            var fpsBar = document.getElementById('fps-bar');
+            fpsBar.style.width = fpsPct + '%';
+            fpsBar.className = 'h-3 rounded-full transition-all duration-500 ' + (fps >= 60 ? 'bg-green-500' : fps >= 30 ? 'bg-yellow-500' : 'bg-red-500');
+            document.getElementById('fps-bar-label').textContent = fps + ' / ∞ fps';
+
+            // History tracking
+            fpsHistory.push(fps);
+            if (fpsHistory.length > maxHistoryPoints) fpsHistory.shift();
+            entityHistory.push(entities);
+            if (entityHistory.length > maxHistoryPoints) entityHistory.shift();
+
+            drawSparkline('fps-chart', fpsHistory, '#38bdf8');
+            drawSparkline('entity-chart', entityHistory, '#fbbf24');
+
+            // Keep overview in sync
+            updateOverviewFromInfo(info);
+        }
+
+        function formatUptime(seconds) {
+            var d = Math.floor(seconds / 86400);
+            var h = Math.floor((seconds % 86400) / 3600);
+            var m = Math.floor((seconds % 3600) / 60);
+            if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+            if (h > 0) return h + 'h ' + m + 'm';
+            return m + 'm';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+            if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return bytes + ' B';
+        }
+
+        function drawSparkline(canvasId, data, color) {
+            var canvas = document.getElementById(canvasId);
+            if (!canvas || data.length < 2) return;
+            var ctx = canvas.getContext('2d');
+            var w = canvas.width;
+            var h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            var min = Math.min.apply(null, data);
+            var max = Math.max.apply(null, data);
+            var range = max - min || 1;
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.lineJoin = 'round';
+
+            for (var i = 0; i < data.length; i++) {
+                var x = (i / (data.length - 1)) * w;
+                var y = h - ((data[i] - min) / range) * (h - 4) - 2;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Fill under line
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fillStyle = color.replace(')', ', 0.1)').replace('rgb', 'rgba');
+            ctx.globalAlpha = 0.15;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+
+        // Auto-refresh stats on overview tab
+        function startStatsAutoRefresh() {
+            if (statsRefreshInterval) clearInterval(statsRefreshInterval);
+            statsRefreshInterval = setInterval(function() {
+                var overviewTab = document.getElementById('overview-tab');
+                if (overviewTab && !overviewTab.classList.contains('hidden') && socket && socket.readyState === WebSocket.OPEN) {
+                    refreshServerInfoSilent();
+                }
+            }, 1000);
+        }
+
+        function doReconnect() {
+            if (socket) { try { socket.close(); } catch(e) {} }
+            if (rconHost && rconPort && rconPassword) {
+                connectRcon(rconHost, rconPort, rconPassword);
+            } else {
+                showLoginScreen();
+            }
+        }
+
+        function doDisconnect() {
+            if (socket) { try { socket.close(); } catch(e) {} }
+            socket = null;
+            updateConnectionStatus(false);
+            showLoginScreen();
+        }
+
+        // ========== THEME SWITCHER ==========
+        function toggleThemeDropdown() {
+            var dd = document.getElementById('theme-dropdown');
+            dd.classList.toggle('show');
+        }
+
+        function setTheme(theme) {
+            // Apply theme to <html> element
+            if (theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+
+            // Update active dot
+            document.querySelectorAll('.theme-dot').forEach(function(dot) {
+                dot.classList.remove('active');
+            });
+            var activeBtn = document.querySelector('[data-theme-btn="' + theme + '"] .theme-dot');
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Save preference
+            localStorage.setItem('rcon-theme', theme);
+
+            // Close dropdown
+            document.getElementById('theme-dropdown').classList.remove('show');
+        }
+
+        // Load saved theme on startup
+        (function() {
+            var saved = localStorage.getItem('rcon-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                document.querySelectorAll('.theme-dot').forEach(function(dot) {
+                    dot.classList.remove('active');
+                });
+                var activeBtn = document.querySelector('[data-theme-btn="' + saved + '"] .theme-dot');
+                if (activeBtn) activeBtn.classList.add('active');
+            }
+        })();
+
+        // Close theme dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var picker = document.querySelector('.theme-picker');
+            if (picker && !picker.contains(e.target)) {
+                document.getElementById('theme-dropdown').classList.remove('show');
+            }
+        });
+
+        // ========== KEYBOARD ==========
+        document.getElementById('cmd-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                sendFromInput();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (cmdHistoryIndex > 0) {
+                    cmdHistoryIndex--;
+                    e.target.value = cmdHistory[cmdHistoryIndex] || '';
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (cmdHistoryIndex < cmdHistory.length - 1) {
+                    cmdHistoryIndex++;
+                    e.target.value = cmdHistory[cmdHistoryIndex] || '';
+                } else {
+                    cmdHistoryIndex = cmdHistory.length;
+                    e.target.value = '';
+                }
+            }
+        });
+
+        // ========== AUTO-REFRESH ==========
+        // Track last console.tail timestamp to avoid duplicates
+        var lastTailTime = 0;
+
+        // Overview stats are auto-refreshed by startStatsAutoRefresh() every 1s
+
+        // Console log polling: fetch new logs every 3s via console.tail
+        // This catches logs even if server doesn't push broadcast messages reliably
+        setInterval(function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                sendRequest('console.tail 32', function(data) {
+                    var msg = (data.Message || '').trim();
+                    try {
+                        var lines = JSON.parse(msg);
+                        if (Array.isArray(lines)) {
+                            lines.forEach(function(line) {
+                                var t = line.Time || 0;
+                                if (t > lastTailTime) {
+                                    handleRconMessage(line);
+                                }
+                            });
+                            // Update lastTailTime to the max time we've seen
+                            if (lines.length > 0) {
+                                var maxTime = 0;
+                                lines.forEach(function(line) {
+                                    if ((line.Time || 0) > maxTime) maxTime = line.Time;
+                                });
+                                if (maxTime > lastTailTime) lastTailTime = maxTime;
+                            }
+                        }
+                    } catch(e) {}
+                });
+            }
+        }, 3000);
+
+        // Players: refresh every 30s (uses sendRequest so it won't pollute console)
+        setInterval(function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                sendRequest('playerlist', function(data) {
+                    var msg = (data.Message || '').trim();
+                    try {
+                        var parsed = JSON.parse(msg);
+                        if (Array.isArray(parsed)) updatePlayerList(parsed);
+                    } catch(e) {}
+                });
+            }
+        }, 30000);
+
+        // ========== START ==========
+        // Don't auto-connect — wait for login
+        startStatsAutoRefresh();
+    </script>
+</body>
+</html>
