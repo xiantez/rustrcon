@@ -34,6 +34,25 @@ if not exist "node_modules" (
 :: Set port
 if "%PORT%"=="" set PORT=3001
 
+:: Check if port is already in use
+netstat -ano | findstr ":%PORT% " | findstr "LISTENING" >nul 2>nul
+if %errorlevel% equ 0 (
+    echo   ⚠️   Port %PORT% is already in use.
+    set /p answer="  Kill the existing process and continue? [Y/n] "
+    if /i "%answer%"=="" set answer=Y
+    if /i "%answer%"=="Y" (
+        for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%PORT% " ^| findstr "LISTENING"') do (
+            taskkill /PID %%a /F >nul 2>nul
+        )
+        timeout /t 1 /nobreak >nul
+        echo   ✅  Cleared port %PORT%
+    ) else (
+        echo   💡  Use a different port: set PORT=3002 ^&^& start.bat
+        pause
+        exit /b 1
+    )
+)
+
 echo.
 echo   🚀  Starting server on port %PORT%...
 echo   🌐  Open http://localhost:%PORT% in your browser

@@ -55,6 +55,16 @@ app.get('/api/steam/:steamid', function(req, res) {
 });
 
 var PORT = process.env.PORT || 3001;
-app.listen(PORT, function() {
+var server = app.listen(PORT, function() {
     console.log("RCON Dashboard running on http://localhost:" + PORT);
+});
+server.on('error', function(err) {
+    if (err.code === 'EADDRINUSE') {
+        console.error('\n  ❌  Port ' + PORT + ' is already in use.');
+        console.error('  💡  Either stop the other process or use a different port:');
+        console.error('      PORT=3002 node index.js\n');
+        process.exit(1);
+    } else {
+        throw err;
+    }
 });
