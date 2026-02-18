@@ -1767,76 +1767,80 @@
             var lines = text.split('\n');
 
             console.log('[Plugins] Parsing', lines.length, 'lines from raw length', raw.length);
-            console.log('[Plugins] Raw:', raw.substring(0, 500));
+            console.log('[Plugins] Raw:', raw.substring(0, 800));
 
-            // Carbon outputs sections: loaded plugins first, then "* unloaded plugins", then "* failed plugins"
-            var section = 'loaded';
+            // Only track if we're inside the "* failed plugins" section
+            var inFailedSection = false;
 
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i].trim();
                 if (!line) continue;
 
-                console.log('[Plugins] Line ' + i + ' [' + section + ']:', line);
+                console.log('[Plugins] Line ' + i + ':', line);
 
-                // Detect section headers (Carbon: "* failed plugins", "* unloaded plugins")
+                // Detect section headers (Carbon: "* failed plugins", "* unloaded plugins", etc.)
                 if (/^\*\s*failed\s+plugins?/i.test(line)) {
-                    section = 'failed';
+                    inFailedSection = true;
+                    console.log('[Plugins] >> Entered failed section');
                     continue;
                 }
-                if (/^\*\s*unloaded\s+plugins?/i.test(line)) {
-                    section = 'unloaded';
+                // Any other "* something" header exits the failed section
+                if (/^\*\s*\w+/.test(line)) {
+                    inFailedSection = false;
+                    continue;
+                }
+                // "Listing X plugins" header also exits failed section
+                if (/^listing\s+/i.test(line)) {
+                    inFailedSection = false;
                     continue;
                 }
 
-                // Skip header/summary lines
-                if (/^listing\s+/i.test(line)) continue;
+                // Skip summary lines
                 if (/^total:/i.test(line)) continue;
                 if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
 
-                // If in failed section, add to failedPlugins
-                if (section === 'failed') {
-                    var failName = line.replace(/^\d+\.?\s*/, '').replace(/"/g, '').trim();
-                    if (failName) failedPlugins.push({ name: failName, raw: line });
-                    continue;
-                }
-
-                // If in unloaded section, skip
-                if (section === 'unloaded') continue;
-
-                // === Parse loaded plugins ===
-                // Must start with a number (index)
+                // Must start with a number to be a plugin line
                 var numMatch = line.match(/^(\d+)\.?\s+(.*)/);
                 if (!numMatch) {
-                    console.log('[Plugins] Skipped (no number prefix):', line);
+                    console.log('[Plugins] Skipped (no number):', line);
                     continue;
                 }
 
                 var idx = parseInt(numMatch[1]);
                 var rest = numMatch[2].trim();
 
-                // Now try to extract name, author, version from "rest"
+                // If in failed section, add to failedPlugins
+                if (inFailedSection) {
+                    failedPlugins.push({ name: rest.replace(/"/g, ''), raw: line });
+                    console.log('[Plugins] FAILED:', rest);
+                    continue;
+                }
+
+                // === Parse as loaded plugin ===
                 var pName = rest, pVersion = '', pAuthor = '';
 
-                // Look for version pattern: v1.0.0 or (1.0.0)
+                // Look for version: v1.0.0 or (1.0.0)
                 var vMatch = rest.match(/^(.+?)\s+v([\d.]+)/i) || rest.match(/^(.+?)\s+\(([\d.]+)\)/);
                 if (vMatch) {
                     var beforeVersion = vMatch[1].trim();
                     pVersion = vMatch[2];
 
-                    // Check if "by Author" exists before the version
+                    // Check if "by Author" exists before the version (Carbon: "Name by Author v1.0")
                     var byMatch = beforeVersion.match(/^(.+?)\s+by\s+(\S+)$/i);
                     if (byMatch) {
                         pName = byMatch[1].trim();
                         pAuthor = byMatch[2].trim();
                     } else {
                         pName = beforeVersion;
+                        // Check for "by Author" after the version (Oxide: "Name v1.0 by Author")
+                        var afterV = rest.substring(vMatch[0].length);
+                        var byAfter = afterV.match(/\s+by\s+(\S+)/i);
+                        if (byAfter) pAuthor = byAfter[1].trim();
                     }
                 } else {
-                    // No version found — just use the first meaningful portion as name
                     pName = rest.replace(/"/g, '').trim();
                 }
 
-                // Clean up name
                 pName = pName.replace(/"/g, '').trim();
 
                 if (pName) {
@@ -1847,7 +1851,7 @@
                         author: pAuthor,
                         raw: line
                     });
-                    console.log('[Plugins] OK:', pName, pVersion ? 'v' + pVersion : '(no ver)', pAuthor ? 'by ' + pAuthor : '');
+                    console.log('[Plugins] OK:', pName, pVersion ? 'v' + pVersion : '', pAuthor ? 'by ' + pAuthor : '');
                 }
             }
 
