@@ -431,7 +431,7 @@
                             <div class="flex justify-between gap-4"><span class="t-muted shrink-0">Server Name</span><span id="srv-hostname" class="console-font text-right break-all">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Hostname</span><span id="srv-dns" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">IP Address</span><span id="srv-ip" class="console-font">--</span></div>
-                            <div class="flex justify-between"><span class="t-muted">Max Players</span><span id="srv-maxplayers" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Players</span><span id="srv-maxplayers" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Restarting</span><span id="srv-restarting" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Protocol</span><span id="srv-protocol" class="console-font">--</span></div>
                         </div>
@@ -1792,7 +1792,7 @@
             document.getElementById('srv-hostname').title = info.Hostname || '';
             document.getElementById('srv-dns').textContent = rconHost || '--';
             // srv-ip is populated by fetchServerIP()
-            document.getElementById('srv-maxplayers').textContent = max;
+            document.getElementById('srv-maxplayers').textContent = (info.Players || 0) + ' / ' + max;
             document.getElementById('srv-restarting').textContent = info.Restarting ? 'Yes' : 'No';
             document.getElementById('srv-restarting').className = 'console-font ' + (info.Restarting ? 'text-red-400' : 'text-green-400');
             document.getElementById('srv-protocol').textContent = info.Protocol || '--';
