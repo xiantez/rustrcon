@@ -809,12 +809,8 @@
                         // Don't delete callback — still waiting for real response
                         return;
                     }
-                    var cb = callbacks[data.Identifier];
-                    // If callback has .accumulate flag, don't delete (let accumulation handle cleanup)
-                    if (!cb._accumulate) {
-                        delete callbacks[data.Identifier];
-                    }
-                    cb(data);
+                    callbacks[data.Identifier](data);
+                    delete callbacks[data.Identifier];
                     return;
                 }
 
@@ -1727,72 +1723,33 @@
             var frameworkEl = document.getElementById('plugin-framework');
             frameworkEl.textContent = 'Detecting...';
 
-            // Carbon/Oxide may send plugin list across MULTIPLE WebSocket messages.
-            // We accumulate all messages for 2 seconds before parsing.
-            function accumulateRequest(command, onDone) {
-                if (!socket || socket.readyState !== WebSocket.OPEN) return;
-                lastIdentifier++;
-                var id = lastIdentifier;
-                var messages = [];
-                var timer = null;
-
-                callbacks[id] = function(data) {
-                    var msg = (data.Message || '').trim();
-                    // Skip Discord Logger noise
-                    if (msg.indexOf('RCON command') !== -1 && msg.indexOf('is run from') !== -1) return;
-                    console.log('[Plugins] Received chunk for', command, '(' + msg.length + ' chars)');
-                    if (msg) messages.push(msg);
-                    // Reset timer on each new message — wait 1.5s after last message
-                    if (timer) clearTimeout(timer);
-                    timer = setTimeout(function() {
-                        delete callbacks[id];
-                        onDone(messages.join('\n'));
-                    }, 1500);
-                };
-                callbacks[id]._accumulate = true;
-
-                // Also set a max timeout of 5s in case server stops responding
-                setTimeout(function() {
-                    if (callbacks[id]) {
-                        delete callbacks[id];
-                        onDone(messages.join('\n'));
-                    }
-                }, 5000);
-
-                var packet = { Identifier: id, Message: command, Name: "WebRcon" };
-                socket.send(JSON.stringify(packet));
-            }
-
-            // Don't delete callback on first response — let accumulation handle it
-            // We need to modify onmessage behavior for this identifier
-            // Actually, the callback itself handles the accumulation, but onmessage
-            // still deletes it. We need to prevent that. Use a special flag.
-
             // Try Carbon first
-            accumulateRequest('c.plugins', function(fullMsg) {
-                console.log('[Plugins] c.plugins full response (' + fullMsg.length + ' chars):', fullMsg.substring(0, 300));
-                if (fullMsg && fullMsg.indexOf('Unknown command') === -1 && fullMsg.indexOf('not recognized') === -1 && fullMsg.trim().length > 10) {
+            sendRequest('c.plugins', function(data) {
+                var msg = data.Message || '';
+                console.log('[Plugins] c.plugins response (' + msg.length + ' chars):', msg.substring(0, 300));
+                if (msg && msg.indexOf('Unknown command') === -1 && msg.indexOf('not recognized') === -1 && msg.trim().length > 10) {
                     pluginFramework = 'carbon';
-                    pluginRawResponse = fullMsg;
+                    pluginRawResponse = msg;
                     frameworkEl.textContent = '⚡ Carbon';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-900/40 border border-emerald-700/40 text-emerald-400';
-                    parsePlugins(fullMsg);
+                    parsePlugins(msg);
                     return;
                 }
                 // Try Oxide
-                accumulateRequest('o.plugins', function(fullMsg2) {
-                    console.log('[Plugins] o.plugins full response (' + fullMsg2.length + ' chars):', fullMsg2.substring(0, 300));
-                    if (fullMsg2 && fullMsg2.indexOf('Unknown command') === -1 && fullMsg2.trim().length > 10) {
+                sendRequest('o.plugins', function(data2) {
+                    var msg2 = data2.Message || '';
+                    console.log('[Plugins] o.plugins response (' + msg2.length + ' chars):', msg2.substring(0, 300));
+                    if (msg2 && msg2.indexOf('Unknown command') === -1 && msg2.trim().length > 10) {
                         pluginFramework = 'oxide';
-                        pluginRawResponse = fullMsg2;
+                        pluginRawResponse = msg2;
                         frameworkEl.textContent = '🔶 Oxide';
                         frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-orange-900/40 border border-orange-700/40 text-orange-400';
-                        parsePlugins(fullMsg2);
+                        parsePlugins(msg2);
                         return;
                     }
                     // Neither found
                     pluginFramework = '';
-                    pluginRawResponse = 'c.plugins: ' + fullMsg + '\no.plugins: ' + fullMsg2;
+                    pluginRawResponse = 'c.plugins: ' + msg + '\no.plugins: ' + msg2;
                     frameworkEl.textContent = 'No Framework';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-400';
                     pluginsLoaded = true;
@@ -1805,89 +1762,67 @@
             currentPlugins = [];
             failedPlugins = [];
 
-            // Normalize all possible line endings
+            // Normalize: server sends literal \n (two chars) as line separators
             var text = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             var lines = text.split('\n');
 
-            console.log('[Plugins] Parsing', lines.length, 'lines from raw length', raw.length);
-            console.log('[Plugins] Raw:', raw.substring(0, 800));
+            console.log('[Plugins] Parsing', lines.length, 'lines');
 
-            // Only track if we're inside the "* failed plugins" section
+            // Track failed section (Carbon: "* failed plugins" header)
             var inFailedSection = false;
 
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i].trim();
                 if (!line) continue;
 
-                console.log('[Plugins] Line ' + i + ':', line);
-
-                // Detect section headers (Carbon: "* failed plugins", "* unloaded plugins", etc.)
-                if (/^\*\s*failed\s+plugins?/i.test(line)) {
-                    inFailedSection = true;
-                    console.log('[Plugins] >> Entered failed section');
-                    continue;
-                }
-                // Any other "* something" header exits the failed section
-                if (/^\*\s*\w+/.test(line)) {
-                    inFailedSection = false;
-                    continue;
-                }
-                // "Listing X plugins" header also exits failed section
-                if (/^listing\s+/i.test(line)) {
-                    inFailedSection = false;
-                    continue;
-                }
-
-                // Skip summary lines
+                // Section headers
+                if (/^\*\s*failed\s+plugins?/i.test(line)) { inFailedSection = true; continue; }
+                if (/^\*\s*\w+/.test(line)) { inFailedSection = false; continue; }
+                if (/^listing\s+/i.test(line)) { inFailedSection = false; continue; }
                 if (/^total:/i.test(line)) continue;
                 if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
 
-                // Must start with a number to be a plugin line
+                // Must start with a number
                 var numMatch = line.match(/^(\d+)\.?\s+(.*)/);
-                if (!numMatch) {
-                    console.log('[Plugins] Skipped (no number):', line);
-                    continue;
-                }
+                if (!numMatch) continue;
 
                 var idx = parseInt(numMatch[1]);
                 var rest = numMatch[2].trim();
 
-                // If in failed section, add to failedPlugins
                 if (inFailedSection) {
                     failedPlugins.push({ name: rest.replace(/"/g, ''), raw: line });
-                    console.log('[Plugins] FAILED:', rest);
                     continue;
                 }
 
-                // === Parse as loaded plugin ===
+                // Parse plugin: try to find version pattern
                 var pName = rest, pVersion = '', pAuthor = '';
 
-                // Look for version: v1.0.0 or (1.0.0) — use GREEDY match to get everything before version
-                var vMatch = rest.match(/^(.+)\s+v([\d.]+)/i) || rest.match(/^(.+)\s+\(([\d.]+)\)/);
+                // Match everything up to the LAST occurrence of vX.X.X
+                var vMatch = rest.match(/^(.+)\s+v([\d.]+)/i);
+                if (!vMatch) vMatch = rest.match(/^(.+)\s+\(([\d.]+)\)/);
+
                 if (vMatch) {
                     var beforeVersion = vMatch[1].trim();
                     pVersion = vMatch[2];
 
-                    // Carbon format: "PluginName AuthorName v1.0.0" — last word before version is author
-                    // Oxide format: might have "by Author" or just "PluginName" without author
+                    // Check for explicit "by Author" before version
                     var byMatch = beforeVersion.match(/^(.+?)\s+by\s+(\S+)$/i);
                     if (byMatch) {
-                        // Explicit "by Author"
                         pName = byMatch[1].trim();
                         pAuthor = byMatch[2].trim();
                     } else {
-                        // Last word is likely the author (Carbon style)
+                        // Carbon style: last word before version is author
+                        // e.g. "Copy Paste misticos" → name="Copy Paste", author="misticos"
                         var lastSpace = beforeVersion.lastIndexOf(' ');
                         if (lastSpace > 0) {
                             pName = beforeVersion.substring(0, lastSpace).trim();
                             pAuthor = beforeVersion.substring(lastSpace + 1).trim();
                         } else {
-                            // Single word — it's just the plugin name, no author
                             pName = beforeVersion;
                         }
                     }
 
-                    // Also check for "by Author" after the version (Oxide: "Name v1.0 by Author")
+                    // Also check for "by Author" after version (Oxide style)
                     if (!pAuthor) {
                         var afterV = rest.substring(vMatch[0].length);
                         var byAfter = afterV.match(/\s+by\s+(\S+)/i);
@@ -1898,22 +1833,19 @@
                 }
 
                 pName = pName.replace(/"/g, '').trim();
-
                 if (pName) {
-                    currentPlugins.push({
-                        index: idx,
-                        name: pName,
-                        version: pVersion,
-                        author: pAuthor,
-                        raw: line
-                    });
-                    console.log('[Plugins] OK:', pName, pVersion ? 'v' + pVersion : '', pAuthor ? 'by ' + pAuthor : '');
+                    currentPlugins.push({ index: idx, name: pName, version: pVersion, author: pAuthor, raw: line });
                 }
             }
 
             pluginsLoaded = true;
             document.getElementById('plugin-count-badge').textContent = currentPlugins.length;
-            console.log('[Plugins] Total:', currentPlugins.length, 'plugins,', failedPlugins.length, 'failed');
+            console.log('[Plugins] Parsed:', currentPlugins.length, 'plugins,', failedPlugins.length, 'failed');
+            // Update raw output display if visible
+            var rawEl = document.getElementById('plugins-raw-output');
+            if (rawEl && !document.getElementById('plugins-raw-section').classList.contains('hidden')) {
+                rawEl.textContent = pluginRawResponse;
+            }
             renderPluginList();
         }
 
