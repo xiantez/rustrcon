@@ -1702,9 +1702,7 @@
         // ========== PLUGINS ==========
         var pluginFramework = ''; // 'carbon', 'oxide', or ''
         var pluginsLoaded = false;
-        var currentPlugins = [];  // loaded plugins from server
-        var unloadedPlugins = []; // unloaded plugins (from server + UI actions)
-        var failedPlugins = [];
+        var pluginMap = {};       // persistent map: key=lowercase name, val={name,version,author,loaded,failed,raw}
         var pluginRawResponse = '';
 
         function togglePluginRaw() {
@@ -1715,9 +1713,6 @@
 
         function refreshPlugins() {
             pluginsLoaded = false;
-            currentPlugins = [];
-            failedPlugins = [];
-            // Don't clear unloadedPlugins — they persist across refreshes
             detectFrameworkAndLoad();
         }
 
@@ -1761,9 +1756,9 @@
         }
 
         function parsePlugins(raw) {
-            currentPlugins = [];
-            failedPlugins = [];
-            var serverUnloaded = [];
+            // Track which plugins the server reports as loaded this time
+            var serverLoaded = {};
+            var serverFailed = {};
 
             // Normalize: server sends literal \n (two chars) as line separators
             var text = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -1774,7 +1769,6 @@
 
             // Track sections (Carbon: "* unloaded plugins", "* failed plugins")
             var currentSection = 'loaded'; // 'loaded', 'unloaded', 'failed'
-            var pluginIndex = 0;
 
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i].trim();
@@ -1794,7 +1788,6 @@
                 if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
 
                 // Skip Carbon package header lines (numbered, NO version pattern)
-                // e.g. "1 Carbon Community (1) Core", "2 Scripts (217)", "3 Zip Scripts"
                 if (/^\d+\s+\S/.test(line) && !/v[\d.]+/i.test(line)) continue;
 
                 // Must have a version pattern to be a plugin line
@@ -1802,7 +1795,9 @@
 
                 if (currentSection === 'failed') {
                     var fName = line.replace(/^\d+\.?\s*/, '').replace(/\s+v[\d.]+.*$/, '').replace(/"/g, '').trim();
-                    if (fName) failedPlugins.push({ name: fName, raw: line });
+                    if (fName) {
+                        serverFailed[fName.toLowerCase()] = { name: fName, raw: line };
+                    }
                     continue;
                 }
 
@@ -1811,7 +1806,6 @@
                 // Strategy 1: Tab-separated columns (Carbon tabular output)
                 if (hasTabs) {
                     var cols = line.split('\t');
-                    // Find the version column
                     var vIdx = -1;
                     for (var c = 0; c < cols.length; c++) {
                         if (/^v[\d.]+$/i.test(cols[c].trim())) { vIdx = c; break; }
@@ -1827,7 +1821,6 @@
 
                 // Strategy 2: Regex-based parsing (space-separated or tab fallback)
                 if (!pVersion) {
-                    // Oxide format: 01. "PluginName" (v1.0.0) by Author
                     var oxideMatch = line.match(/^\d+\.?\s+"?(.+?)"?\s+(?:\()?v([\d.]+)(?:\))?\s+by\s+(.+?)(?:\s+-|$)/i);
                     if (!oxideMatch) oxideMatch = line.match(/^\d+\.?\s+"?(.+?)"?\s+(?:\()?v([\d.]+)(?:\))?\s+by\s+(.+)/i);
 
@@ -1836,27 +1829,19 @@
                         pVersion = oxideMatch[2];
                         pAuthor = oxideMatch[3].trim();
                     } else {
-                        // Generic: everything up to first vX.X.X
                         var vMatch = line.match(/^(.+?)\s+v([\d.]+)/i);
                         if (!vMatch) continue;
 
                         var prefix = vMatch[1].trim();
                         pVersion = vMatch[2];
-
-                        // Strip leading index number if present
                         prefix = prefix.replace(/^\d+\.?\s+/, '');
-
-                        // Strip trailing parenthetical notes like "(Fixed for carbon)"
                         var cleanPrefix = prefix.replace(/\s*\([^)]*\)\s*$/, '');
 
-                        // Try explicit "by Author" pattern
                         var byM = cleanPrefix.match(/^(.+?)\s+by\s+(.+)$/i);
                         if (byM) {
                             pName = byM[1].trim();
                             pAuthor = byM[2].trim();
                         } else {
-                            // Carbon: split name and author using connector-aware word grouping
-                            // Walk backwards from end, grouping words connected by & , and
                             var words = cleanPrefix.split(/\s+/);
                             if (words.length >= 2) {
                                 var authorStart = words.length - 1;
@@ -1880,40 +1865,52 @@
 
                 pName = pName.replace(/"/g, '').trim();
                 if (pName && pVersion) {
-                    pluginIndex++;
-                    var pluginObj = { index: pluginIndex, name: pName, version: pVersion, author: pAuthor, raw: line };
-                    if (currentSection === 'unloaded') {
-                        pluginObj.loaded = false;
-                        serverUnloaded.push(pluginObj);
+                    var key = pName.toLowerCase();
+                    var isLoaded = (currentSection === 'loaded');
+                    if (isLoaded) serverLoaded[key] = true;
+
+                    // Add to persistent map or update existing entry
+                    if (!pluginMap[key]) {
+                        pluginMap[key] = { name: pName, version: pVersion, author: pAuthor, loaded: isLoaded, failed: false, raw: line };
                     } else {
-                        pluginObj.loaded = true;
-                        currentPlugins.push(pluginObj);
+                        // Update with latest info from server
+                        pluginMap[key].version = pVersion;
+                        if (pAuthor) pluginMap[key].author = pAuthor;
+                        pluginMap[key].loaded = isLoaded;
+                        pluginMap[key].failed = false;
+                        pluginMap[key].raw = line;
                     }
                 }
             }
 
-            // Merge unloaded plugins: keep previously-known unloaded that aren't now loaded
-            var loadedNames = {};
-            currentPlugins.forEach(function(p) { loadedNames[p.name.toLowerCase()] = true; });
-
-            // Remove from unloadedPlugins any that are now loaded (re-loaded since last check)
-            unloadedPlugins = unloadedPlugins.filter(function(p) {
-                return !loadedNames[p.name.toLowerCase()];
+            // Update loaded state for all known plugins based on server response
+            Object.keys(pluginMap).forEach(function(key) {
+                if (serverLoaded[key]) {
+                    pluginMap[key].loaded = true;
+                    pluginMap[key].failed = false;
+                } else if (serverFailed[key]) {
+                    pluginMap[key].loaded = false;
+                    pluginMap[key].failed = true;
+                }
+                // If not in serverLoaded and not in serverFailed, keep existing state
+                // (preserves unloaded-via-UI plugins)
             });
 
-            // Add server-reported unloaded that aren't already tracked
-            var unloadedNames = {};
-            unloadedPlugins.forEach(function(p) { unloadedNames[p.name.toLowerCase()] = true; });
-            serverUnloaded.forEach(function(p) {
-                if (!unloadedNames[p.name.toLowerCase()] && !loadedNames[p.name.toLowerCase()]) {
-                    unloadedPlugins.push(p);
+            // Add any failed plugins not already in the map
+            Object.keys(serverFailed).forEach(function(key) {
+                if (!pluginMap[key]) {
+                    var fp = serverFailed[key];
+                    pluginMap[key] = { name: fp.name, version: '', author: '', loaded: false, failed: true, raw: fp.raw };
                 }
             });
 
             pluginsLoaded = true;
-            document.getElementById('plugin-count-badge').textContent = currentPlugins.length + unloadedPlugins.length;
-            console.log('[Plugins] Parsed:', currentPlugins.length, 'loaded,', unloadedPlugins.length, 'unloaded,', failedPlugins.length, 'failed');
-            // Update raw output display if visible
+            var count = Object.keys(pluginMap).length;
+            document.getElementById('plugin-count-badge').textContent = count;
+            var loadedCount = 0;
+            Object.keys(pluginMap).forEach(function(k) { if (pluginMap[k].loaded) loadedCount++; });
+            console.log('[Plugins] Total:', count, 'plugins (' + loadedCount + ' loaded)');
+
             var rawEl = document.getElementById('plugins-raw-output');
             if (rawEl && !document.getElementById('plugins-raw-section').classList.contains('hidden')) {
                 rawEl.textContent = pluginRawResponse;
@@ -1927,11 +1924,8 @@
             var failedSection = document.getElementById('plugins-failed-section');
             failedSection.classList.add('hidden');
 
-            // Combine loaded + unloaded + failed into one list
-            var failedWithState = failedPlugins.map(function(fp) {
-                return { name: fp.name, version: '', author: '', loaded: false, failed: true, raw: fp.raw };
-            });
-            var allPlugins = currentPlugins.concat(unloadedPlugins).concat(failedWithState);
+            // Build array from persistent map
+            var allPlugins = Object.keys(pluginMap).map(function(k) { return pluginMap[k]; });
             var searchTerm = (document.getElementById('plugin-search').value || '').toLowerCase();
             var filtered = allPlugins.filter(function(p) {
                 return !searchTerm || p.name.toLowerCase().indexOf(searchTerm) !== -1 || (p.author && p.author.toLowerCase().indexOf(searchTerm) !== -1);
@@ -1999,9 +1993,7 @@
                 listEl.appendChild(card);
             });
         }
-                    el.innerHTML = '<span class=\"text-red-300 console-font\">' + escapeHtml(fp.name) + '</span>' +
-                        '<button onclick=\"pluginAction(\'load\', \'' + escapeAttr(fp.name) + '\')\" class=\"text-xs px-2 py-1 rounded bg-green-800/40 border border-green-700/30 text-green-400 hover:bg-green-800/60 transition\">Retry Load</button>';
-                    failedList.appendChild(el);
+
         function escapeAttr(str) {
             return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         }
@@ -2012,7 +2004,6 @@
 
         function pluginAction(action, pluginName) {
             var prefix = pluginFramework === 'carbon' ? 'c.' : 'o.';
-            // Carbon expects filename (no spaces): "Admin Chat" → "AdminChat"
             var cmdName = pluginFramework === 'carbon' ? pluginName.replace(/\s+/g, '') : pluginName;
             var cmd = prefix + action + ' ' + cmdName;
             sendRequest(cmd, function(data) {
@@ -2024,38 +2015,20 @@
                     showToast(pluginName + ' — ' + action + ' sent', 'success');
                 }
 
-                // Track state changes locally before refresh
-                if (action === 'unload') {
-                    // Move from loaded to unloaded
-                    var found = null;
-                    currentPlugins = currentPlugins.filter(function(p) {
-                        if (p.name === pluginName) { found = p; return false; }
-                        return true;
-                    });
-                    if (found) {
-                        found.loaded = false;
-                        var alreadyUnloaded = unloadedPlugins.some(function(u) {
-                            return u.name.toLowerCase() === pluginName.toLowerCase();
-                        });
-                        if (!alreadyUnloaded) unloadedPlugins.push(found);
+                // Update state in the persistent map immediately
+                var key = pluginName.toLowerCase();
+                if (pluginMap[key]) {
+                    if (action === 'unload') {
+                        pluginMap[key].loaded = false;
+                    } else if (action === 'load' || action === 'reload') {
+                        pluginMap[key].loaded = true;
+                        pluginMap[key].failed = false;
                     }
-                    renderPluginList();
-                } else if (action === 'load') {
-                    // Move from unloaded to loaded
-                    var found = null;
-                    unloadedPlugins = unloadedPlugins.filter(function(p) {
-                        if (p.name.toLowerCase() === pluginName.toLowerCase()) { found = p; return false; }
-                        return true;
-                    });
-                    if (found) {
-                        found.loaded = true;
-                        currentPlugins.push(found);
-                    }
-                    renderPluginList();
                 }
+                renderPluginList();
 
                 // Also refresh from server after a delay to sync state
-                setTimeout(refreshPlugins, 2000);
+                setTimeout(refreshPlugins, 2500);
             });
         }
 
