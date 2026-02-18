@@ -295,7 +295,10 @@
                             <h3 class="text-base font-semibold mb-1">👋 Welcome back, Admin</h3>
                             <p class="text-sm t-muted">Here's a quick look at your Rust server status.</p>
                         </div>
-                        <span id="stats-last-update" class="text-xs text-slate-500">Not updated yet</span>
+                        <div class="flex items-center gap-3">
+                            <span id="stats-last-update" class="text-xs text-slate-500">Not updated yet</span>
+                            <button onclick="rebootServer()" class="text-xs bg-red-700/60 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition font-medium">⟳ Reboot</button>
+                        </div>
                     </div>
                 </div>
 
@@ -926,6 +929,14 @@
                 Name: "WebRcon"
             };
             socket.send(JSON.stringify(packet));
+        }
+
+        function rebootServer() {
+            if (confirm('Are you sure you want to reboot the server?')) {
+                sendCmd('restart 1');
+                appendConsole('Server reboot initiated (restart 1)', 'text-red-400');
+                showToast('Server reboot initiated', 'success');
+            }
         }
 
         // Send command with callback (like rconService.Request in the reference project)
