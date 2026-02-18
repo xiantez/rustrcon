@@ -1702,7 +1702,8 @@
         // ========== PLUGINS ==========
         var pluginFramework = ''; // 'carbon', 'oxide', or ''
         var pluginsLoaded = false;
-        var currentPlugins = [];
+        var currentPlugins = [];  // loaded plugins from server
+        var unloadedPlugins = []; // unloaded plugins (from server + UI actions)
         var failedPlugins = [];
         var pluginRawResponse = '';
 
@@ -1716,6 +1717,7 @@
             pluginsLoaded = false;
             currentPlugins = [];
             failedPlugins = [];
+            // Don't clear unloadedPlugins — they persist across refreshes
             detectFrameworkAndLoad();
         }
 
@@ -1761,6 +1763,7 @@
         function parsePlugins(raw) {
             currentPlugins = [];
             failedPlugins = [];
+            var serverUnloaded = [];
 
             // Normalize: server sends literal \n (two chars) as line separators
             var text = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -1769,8 +1772,8 @@
 
             console.log('[Plugins] Parsing', lines.length, 'lines, hasTabs:', hasTabs);
 
-            // Track failed section (Carbon: "* failed plugins" header)
-            var inFailedSection = false;
+            // Track sections (Carbon: "* unloaded plugins", "* failed plugins")
+            var currentSection = 'loaded'; // 'loaded', 'unloaded', 'failed'
             var pluginIndex = 0;
 
             for (var i = 0; i < lines.length; i++) {
@@ -1781,8 +1784,9 @@
                 if (/^#\s/.test(line)) continue;
 
                 // Section headers
-                if (/^\*\s*failed\s+plugins?/i.test(line)) { inFailedSection = true; continue; }
-                if (/^\*\s/.test(line)) { inFailedSection = false; continue; }
+                if (/^\*\s*failed\s+plugins?/i.test(line)) { currentSection = 'failed'; continue; }
+                if (/^\*\s*unloaded\s+plugins?/i.test(line)) { currentSection = 'unloaded'; continue; }
+                if (/^\*\s/.test(line)) { currentSection = 'loaded'; continue; }
 
                 // Oxide-specific meta lines
                 if (/^listing\s+/i.test(line)) continue;
@@ -1796,7 +1800,7 @@
                 // Must have a version pattern to be a plugin line
                 if (!/v[\d.]+/i.test(line)) continue;
 
-                if (inFailedSection) {
+                if (currentSection === 'failed') {
                     var fName = line.replace(/^\d+\.?\s*/, '').replace(/\s+v[\d.]+.*$/, '').replace(/"/g, '').trim();
                     if (fName) failedPlugins.push({ name: fName, raw: line });
                     continue;
@@ -1877,13 +1881,48 @@
                 pName = pName.replace(/"/g, '').trim();
                 if (pName && pVersion) {
                     pluginIndex++;
-                    currentPlugins.push({ index: pluginIndex, name: pName, version: pVersion, author: pAuthor, raw: line });
+                    var pluginObj = { index: pluginIndex, name: pName, version: pVersion, author: pAuthor, raw: line };
+                    if (currentSection === 'unloaded') {
+                        pluginObj.loaded = false;
+                        serverUnloaded.push(pluginObj);
+                    } else {
+                        pluginObj.loaded = true;
+                        currentPlugins.push(pluginObj);
+                    }
                 }
             }
 
+            // Merge unloaded plugins: server-reported + previously UI-unloaded
+            // Build set of loaded plugin names for dedup
+            var loadedNames = {};
+            currentPlugins.forEach(function(p) { loadedNames[p.name.toLowerCase()] = true; });
+
+            // Add server-reported unloaded plugins
+            serverUnloaded.forEach(function(p) {
+                if (!loadedNames[p.name.toLowerCase()]) {
+                    loadedNames[p.name.toLowerCase()] = true;
+                    unloadedPlugins.push(p);
+                }
+            });
+
+            // Keep UI-unloaded plugins that haven't been re-loaded
+            unloadedPlugins = unloadedPlugins.filter(function(p) {
+                return !loadedNames[p.name.toLowerCase()] || !currentPlugins.some(function(lp) {
+                    return lp.name.toLowerCase() === p.name.toLowerCase();
+                });
+            });
+
+            // Add server-reported unloaded that aren't already in unloadedPlugins
+            serverUnloaded.forEach(function(p) {
+                var exists = unloadedPlugins.some(function(u) {
+                    return u.name.toLowerCase() === p.name.toLowerCase();
+                });
+                if (!exists) unloadedPlugins.push(p);
+            });
+
             pluginsLoaded = true;
-            document.getElementById('plugin-count-badge').textContent = currentPlugins.length;
-            console.log('[Plugins] Parsed:', currentPlugins.length, 'plugins,', failedPlugins.length, 'failed');
+            document.getElementById('plugin-count-badge').textContent = currentPlugins.length + unloadedPlugins.length;
+            console.log('[Plugins] Parsed:', currentPlugins.length, 'loaded,', unloadedPlugins.length, 'unloaded,', failedPlugins.length, 'failed');
             // Update raw output display if visible
             var rawEl = document.getElementById('plugins-raw-output');
             if (rawEl && !document.getElementById('plugins-raw-section').classList.contains('hidden')) {
@@ -1913,10 +1952,17 @@
                 failedSection.classList.add('hidden');
             }
 
-            // Main list
+            // Main list — combine loaded + unloaded plugins
+            var allPlugins = currentPlugins.concat(unloadedPlugins);
             var searchTerm = (document.getElementById('plugin-search').value || '').toLowerCase();
-            var filtered = currentPlugins.filter(function(p) {
-                return !searchTerm || p.name.toLowerCase().indexOf(searchTerm) !== -1 || p.author.toLowerCase().indexOf(searchTerm) !== -1;
+            var filtered = allPlugins.filter(function(p) {
+                return !searchTerm || p.name.toLowerCase().indexOf(searchTerm) !== -1 || (p.author && p.author.toLowerCase().indexOf(searchTerm) !== -1);
+            });
+
+            // Sort: loaded first, then alphabetical
+            filtered.sort(function(a, b) {
+                if (a.loaded !== b.loaded) return a.loaded ? -1 : 1;
+                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
             });
 
             if (filtered.length === 0 && failedPlugins.length === 0) {
@@ -1928,23 +1974,40 @@
 
             listEl.innerHTML = '';
             filtered.forEach(function(p) {
+                var isLoaded = p.loaded !== false;
+                var statusDot = isLoaded
+                    ? '<span class=\"w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0\" title=\"Loaded\"></span>'
+                    : '<span class=\"w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0\" title=\"Unloaded\"></span>';
+                var statusBadge = isLoaded ? '' :
+                    '<span class=\"text-[11px] px-1.5 py-0.5 rounded bg-red-900/40 border border-red-800/30 text-red-400 console-font\">Unloaded</span>';
+                var cardOpacity = isLoaded ? '' : ' opacity-60';
+
+                var buttons = '';
+                if (isLoaded) {
+                    buttons =
+                        '  <button onclick=\"pluginAction(\'reload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-sky-800/30 border border-sky-700/30 text-sky-400 hover:bg-sky-800/50 transition\">Reload</button>' +
+                        '  <button onclick=\"pluginAction(\'unload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-red-800/30 border border-red-700/30 text-red-400 hover:bg-red-800/50 transition\">Unload</button>';
+                } else {
+                    buttons =
+                        '  <button onclick=\"pluginAction(\'load\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-green-800/30 border border-green-700/30 text-green-400 hover:bg-green-800/50 transition\">Load</button>';
+                }
+
                 var card = document.createElement('div');
-                card.className = 't-card rounded-lg border p-4 overview-card';
+                card.className = 't-card rounded-lg border p-4 overview-card' + cardOpacity;
                 card.innerHTML =
                     '<div class=\"flex items-start justify-between mb-2\">' +
                     '  <div class=\"min-w-0 flex-1\">' +
                     '    <h3 class=\"text-sm font-semibold truncate\" style=\"color:var(--text-primary)\">' + escapeHtml(p.name) + '</h3>' +
                     '    <div class=\"flex items-center gap-2 mt-0.5\">' +
                     (p.version ? '      <span class=\"text-[11px] px-1.5 py-0.5 rounded bg-sky-900/40 border border-sky-800/30 text-sky-400 console-font\">v' + escapeHtml(p.version) + '</span>' : '') +
+                    statusBadge +
                     (p.author ? '      <span class=\"text-[11px] t-muted\">by ' + escapeHtml(p.author) + '</span>' : '') +
                     '    </div>' +
                     '  </div>' +
-                    '  <span class=\"w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0\" title=\"Loaded\"></span>' +
+                    statusDot +
                     '</div>' +
                     '<div class=\"flex gap-1.5 mt-3\">' +
-                    '  <button onclick=\"pluginAction(\'reload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-sky-800/30 border border-sky-700/30 text-sky-400 hover:bg-sky-800/50 transition\">Reload</button>' +
-                    '  <button onclick=\"pluginAction(\'unload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-red-800/30 border border-red-700/30 text-red-400 hover:bg-red-800/50 transition\">Unload</button>' +
-                    '  <button onclick=\"pluginAction(\'load\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-green-800/30 border border-green-700/30 text-green-400 hover:bg-green-800/50 transition\">Load</button>' +
+                    buttons +
                     '</div>';
                 listEl.appendChild(card);
             });
@@ -1971,8 +2034,39 @@
                 } else {
                     showToast(pluginName + ' — ' + action + ' sent', 'success');
                 }
-                // Refresh plugin list after a short delay to allow server to process
-                setTimeout(refreshPlugins, 1500);
+
+                // Track state changes locally before refresh
+                if (action === 'unload') {
+                    // Move from loaded to unloaded
+                    var found = null;
+                    currentPlugins = currentPlugins.filter(function(p) {
+                        if (p.name === pluginName) { found = p; return false; }
+                        return true;
+                    });
+                    if (found) {
+                        found.loaded = false;
+                        var alreadyUnloaded = unloadedPlugins.some(function(u) {
+                            return u.name.toLowerCase() === pluginName.toLowerCase();
+                        });
+                        if (!alreadyUnloaded) unloadedPlugins.push(found);
+                    }
+                    renderPluginList();
+                } else if (action === 'load') {
+                    // Move from unloaded to loaded
+                    var found = null;
+                    unloadedPlugins = unloadedPlugins.filter(function(p) {
+                        if (p.name.toLowerCase() === pluginName.toLowerCase()) { found = p; return false; }
+                        return true;
+                    });
+                    if (found) {
+                        found.loaded = true;
+                        currentPlugins.push(found);
+                    }
+                    renderPluginList();
+                }
+
+                // Also refresh from server after a delay to sync state
+                setTimeout(refreshPlugins, 2000);
             });
         }
 
