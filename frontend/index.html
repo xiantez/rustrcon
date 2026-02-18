@@ -1067,7 +1067,7 @@
                 appendConsole('Muted ' + name, 'text-purple-400');
                 showToast('Muted ' + name, 'success');
             }
-            if (typeof renderPlayers === 'function' && currentPlayers.length) renderPlayers(currentPlayers);
+            if (currentPlayers.length) updatePlayerList(currentPlayers);
             var pdMuteBtn = document.getElementById('pd-mute-btn');
             if (pdMuteBtn) {
                 pdMuteBtn.textContent = mutedPlayers[steamId] ? 'Unmute' : 'Mute';
