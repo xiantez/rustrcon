@@ -150,6 +150,8 @@
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .animate-slide-in { animation: slideIn 0.3s ease forwards; }
         .player-card:hover { background-color: var(--bg-card-hover); }
+        .fps-digit-box { background: #0f172a; border: 2px solid #22c55e; border-radius: 8px; padding: 6px 10px; min-width: 44px; text-align: center; transition: border-color 0.5s; }
+        .fps-digit { font-family: 'JetBrains Mono', monospace; font-size: 2rem; font-weight: 700; color: #e2e8f0; line-height: 1; }
         .t-header { background-color: var(--bg-header); border-color: var(--border-header); backdrop-filter: blur(12px); }
         .t-sidebar { background-color: var(--bg-sidebar); border-color: var(--border-color); }
         .t-card { background-color: var(--bg-card); border-color: var(--border-color); transition: all 0.2s ease; }
@@ -343,16 +345,25 @@
                     </div>
                 </div>
 
-                <!-- FPS Health Bar -->
+                <!-- FPS Odometer -->
                 <div class="t-card rounded-xl p-4 border mb-6">
-                    <div class="flex justify-between items-center mb-2">
+                    <div class="flex justify-between items-center mb-3">
                         <span class="text-xs t-muted uppercase tracking-wider">FPS Health</span>
-                        <span id="fps-bar-label" class="text-xs console-font text-slate-300">--</span>
+                        <span id="fps-status-label" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">HEALTHY</span>
                     </div>
-                    <div class="w-full bg-slate-900 rounded-full h-3">
-                        <div id="fps-bar" class="h-3 rounded-full transition-all duration-500 bg-green-500" style="width: 0%"></div>
+                    <div class="flex items-center justify-center gap-1">
+                        <div id="fps-odometer" class="flex gap-[3px]">
+                            <div class="fps-digit-box"><span class="fps-digit">0</span></div>
+                            <div class="fps-digit-box"><span class="fps-digit">0</span></div>
+                            <div class="fps-digit-box"><span class="fps-digit">0</span></div>
+                        </div>
+                        <span class="text-sm t-muted font-medium ml-2">FPS</span>
                     </div>
-                    <div class="flex justify-between text-[10px] text-slate-600 mt-1 console-font"><span>0</span><span>100</span><span>200</span><span>300</span><span>∞</span></div>
+                    <div class="flex justify-center gap-6 mt-3">
+                        <div class="text-center"><span class="text-[10px] t-muted block">LOW</span><span id="fps-odo-low" class="text-xs console-font text-slate-300">--</span></div>
+                        <div class="text-center"><span class="text-[10px] t-muted block">AVG</span><span id="fps-odo-avg" class="text-xs console-font text-slate-300">--</span></div>
+                        <div class="text-center"><span class="text-[10px] t-muted block">HIGH</span><span id="fps-odo-high" class="text-xs console-font text-slate-300">--</span></div>
+                    </div>
                 </div>
 
                 <!-- Detail Cards Grid -->
@@ -1663,13 +1674,26 @@
             document.getElementById('srv-restarting').className = 'console-font ' + (info.Restarting ? 'text-red-400' : 'text-green-400');
             document.getElementById('srv-protocol').textContent = info.Protocol || '--';
 
-            // FPS bar (dynamic scale, no cap)
-            var fpsMax = Math.max(300, fps);
-            var fpsPct = Math.min(100, (fps / fpsMax) * 100);
-            var fpsBar = document.getElementById('fps-bar');
-            fpsBar.style.width = fpsPct + '%';
-            fpsBar.className = 'h-3 rounded-full transition-all duration-500 ' + (fps >= 60 ? 'bg-green-500' : fps >= 30 ? 'bg-yellow-500' : 'bg-red-500');
-            document.getElementById('fps-bar-label').textContent = fps + ' / ∞ fps';
+            // FPS odometer
+            var fpsStr = String(Math.min(999, fps)).padStart(3, '0');
+            var digits = document.querySelectorAll('#fps-odometer .fps-digit');
+            for (var di = 0; di < digits.length; di++) digits[di].textContent = fpsStr[di];
+            var digitBoxes = document.querySelectorAll('#fps-odometer .fps-digit-box');
+            var odoColor = fps >= 60 ? '#22c55e' : fps >= 30 ? '#eab308' : '#ef4444';
+            for (var di = 0; di < digitBoxes.length; di++) digitBoxes[di].style.borderColor = odoColor;
+            var statusLabel = document.getElementById('fps-status-label');
+            if (fps >= 60) { statusLabel.textContent = 'HEALTHY'; statusLabel.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400'; }
+            else if (fps >= 30) { statusLabel.textContent = 'WARNING'; statusLabel.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400'; }
+            else { statusLabel.textContent = 'CRITICAL'; statusLabel.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400'; }
+            // Low/Avg/High from history
+            if (fpsHistory.length > 0) {
+                var fpsLow = Math.min.apply(null, fpsHistory);
+                var fpsHigh = Math.max.apply(null, fpsHistory);
+                var fpsAvg = Math.round(fpsHistory.reduce(function(a,b){return a+b;},0) / fpsHistory.length);
+                document.getElementById('fps-odo-low').textContent = fpsLow;
+                document.getElementById('fps-odo-avg').textContent = fpsAvg;
+                document.getElementById('fps-odo-high').textContent = fpsHigh;
+            }
 
             // History tracking
             fpsHistory.push(fps);
