@@ -648,6 +648,7 @@
             document.getElementById('login-host').value = s.host || '';
             document.getElementById('login-port').value = s.port || '28016';
             document.getElementById('login-password').value = s.password || '';
+            doLogin();
         }
         function deleteSavedServer(idx) {
             var servers = getSavedServers();
