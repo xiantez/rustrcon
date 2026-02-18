@@ -809,8 +809,12 @@
                         // Don't delete callback — still waiting for real response
                         return;
                     }
-                    callbacks[data.Identifier](data);
-                    delete callbacks[data.Identifier];
+                    var cb = callbacks[data.Identifier];
+                    // If callback has .accumulate flag, don't delete (let accumulation handle cleanup)
+                    if (!cb._accumulate) {
+                        delete callbacks[data.Identifier];
+                    }
+                    cb(data);
                     return;
                 }
 
@@ -1723,33 +1727,72 @@
             var frameworkEl = document.getElementById('plugin-framework');
             frameworkEl.textContent = 'Detecting...';
 
+            // Carbon/Oxide may send plugin list across MULTIPLE WebSocket messages.
+            // We accumulate all messages for 2 seconds before parsing.
+            function accumulateRequest(command, onDone) {
+                if (!socket || socket.readyState !== WebSocket.OPEN) return;
+                lastIdentifier++;
+                var id = lastIdentifier;
+                var messages = [];
+                var timer = null;
+
+                callbacks[id] = function(data) {
+                    var msg = (data.Message || '').trim();
+                    // Skip Discord Logger noise
+                    if (msg.indexOf('RCON command') !== -1 && msg.indexOf('is run from') !== -1) return;
+                    console.log('[Plugins] Received chunk for', command, '(' + msg.length + ' chars)');
+                    if (msg) messages.push(msg);
+                    // Reset timer on each new message — wait 1.5s after last message
+                    if (timer) clearTimeout(timer);
+                    timer = setTimeout(function() {
+                        delete callbacks[id];
+                        onDone(messages.join('\n'));
+                    }, 1500);
+                };
+                callbacks[id]._accumulate = true;
+
+                // Also set a max timeout of 5s in case server stops responding
+                setTimeout(function() {
+                    if (callbacks[id]) {
+                        delete callbacks[id];
+                        onDone(messages.join('\n'));
+                    }
+                }, 5000);
+
+                var packet = { Identifier: id, Message: command, Name: "WebRcon" };
+                socket.send(JSON.stringify(packet));
+            }
+
+            // Don't delete callback on first response — let accumulation handle it
+            // We need to modify onmessage behavior for this identifier
+            // Actually, the callback itself handles the accumulation, but onmessage
+            // still deletes it. We need to prevent that. Use a special flag.
+
             // Try Carbon first
-            sendRequest('c.plugins', function(data) {
-                var msg = data.Message || '';
-                console.log('[Plugins] c.plugins raw response:', JSON.stringify(msg));
-                if (msg && msg.indexOf('Unknown command') === -1 && msg.indexOf('not recognized') === -1 && msg.trim().length > 10) {
+            accumulateRequest('c.plugins', function(fullMsg) {
+                console.log('[Plugins] c.plugins full response (' + fullMsg.length + ' chars):', fullMsg.substring(0, 300));
+                if (fullMsg && fullMsg.indexOf('Unknown command') === -1 && fullMsg.indexOf('not recognized') === -1 && fullMsg.trim().length > 10) {
                     pluginFramework = 'carbon';
-                    pluginRawResponse = msg;
+                    pluginRawResponse = fullMsg;
                     frameworkEl.textContent = '⚡ Carbon';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-900/40 border border-emerald-700/40 text-emerald-400';
-                    parsePlugins(msg);
+                    parsePlugins(fullMsg);
                     return;
                 }
                 // Try Oxide
-                sendRequest('o.plugins', function(data2) {
-                    var msg2 = data2.Message || '';
-                    console.log('[Plugins] o.plugins raw response:', JSON.stringify(msg2));
-                    if (msg2 && msg2.indexOf('Unknown command') === -1 && msg2.trim().length > 10) {
+                accumulateRequest('o.plugins', function(fullMsg2) {
+                    console.log('[Plugins] o.plugins full response (' + fullMsg2.length + ' chars):', fullMsg2.substring(0, 300));
+                    if (fullMsg2 && fullMsg2.indexOf('Unknown command') === -1 && fullMsg2.trim().length > 10) {
                         pluginFramework = 'oxide';
-                        pluginRawResponse = msg2;
+                        pluginRawResponse = fullMsg2;
                         frameworkEl.textContent = '🔶 Oxide';
                         frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-orange-900/40 border border-orange-700/40 text-orange-400';
-                        parsePlugins(msg2);
+                        parsePlugins(fullMsg2);
                         return;
                     }
                     // Neither found
                     pluginFramework = '';
-                    pluginRawResponse = 'c.plugins: ' + msg + '\no.plugins: ' + msg2;
+                    pluginRawResponse = 'c.plugins: ' + fullMsg + '\no.plugins: ' + fullMsg2;
                     frameworkEl.textContent = 'No Framework';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-400';
                     pluginsLoaded = true;
@@ -1819,20 +1862,33 @@
                 // === Parse as loaded plugin ===
                 var pName = rest, pVersion = '', pAuthor = '';
 
-                // Look for version: v1.0.0 or (1.0.0)
-                var vMatch = rest.match(/^(.+?)\s+v([\d.]+)/i) || rest.match(/^(.+?)\s+\(([\d.]+)\)/);
+                // Look for version: v1.0.0 or (1.0.0) — use GREEDY match to get everything before version
+                var vMatch = rest.match(/^(.+)\s+v([\d.]+)/i) || rest.match(/^(.+)\s+\(([\d.]+)\)/);
                 if (vMatch) {
                     var beforeVersion = vMatch[1].trim();
                     pVersion = vMatch[2];
 
-                    // Check if "by Author" exists before the version (Carbon: "Name by Author v1.0")
+                    // Carbon format: "PluginName AuthorName v1.0.0" — last word before version is author
+                    // Oxide format: might have "by Author" or just "PluginName" without author
                     var byMatch = beforeVersion.match(/^(.+?)\s+by\s+(\S+)$/i);
                     if (byMatch) {
+                        // Explicit "by Author"
                         pName = byMatch[1].trim();
                         pAuthor = byMatch[2].trim();
                     } else {
-                        pName = beforeVersion;
-                        // Check for "by Author" after the version (Oxide: "Name v1.0 by Author")
+                        // Last word is likely the author (Carbon style)
+                        var lastSpace = beforeVersion.lastIndexOf(' ');
+                        if (lastSpace > 0) {
+                            pName = beforeVersion.substring(0, lastSpace).trim();
+                            pAuthor = beforeVersion.substring(lastSpace + 1).trim();
+                        } else {
+                            // Single word — it's just the plugin name, no author
+                            pName = beforeVersion;
+                        }
+                    }
+
+                    // Also check for "by Author" after the version (Oxide: "Name v1.0 by Author")
+                    if (!pAuthor) {
                         var afterV = rest.substring(vMatch[0].length);
                         var byAfter = afterV.match(/\s+by\s+(\S+)/i);
                         if (byAfter) pAuthor = byAfter[1].trim();
