@@ -1960,7 +1960,9 @@
 
         function pluginAction(action, pluginName) {
             var prefix = pluginFramework === 'carbon' ? 'c.' : 'o.';
-            var cmd = prefix + action + ' ' + pluginName;
+            // Carbon expects filename (no spaces): "Admin Chat" → "AdminChat"
+            var cmdName = pluginFramework === 'carbon' ? pluginName.replace(/\s+/g, '') : pluginName;
+            var cmd = prefix + action + ' ' + cmdName;
             sendRequest(cmd, function(data) {
                 var msg = data.Message || '';
                 if (msg) {
