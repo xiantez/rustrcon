@@ -428,8 +428,9 @@
                             Server Info
                         </h3>
                         <div class="space-y-2 text-sm">
-                            <div class="flex justify-between gap-4"><span class="t-muted shrink-0">Hostname</span><span id="srv-hostname" class="console-font text-right break-all">--</span></div>
-                            <div class="flex justify-between"><span class="t-muted">Public IP</span><span id="srv-ip" class="console-font">--</span></div>
+                            <div class="flex justify-between gap-4"><span class="t-muted shrink-0">Server Name</span><span id="srv-hostname" class="console-font text-right break-all">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">Hostname</span><span id="srv-dns" class="console-font">--</span></div>
+                            <div class="flex justify-between"><span class="t-muted">IP Address</span><span id="srv-ip" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Max Players</span><span id="srv-maxplayers" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Restarting</span><span id="srv-restarting" class="console-font">--</span></div>
                             <div class="flex justify-between"><span class="t-muted">Protocol</span><span id="srv-protocol" class="console-font">--</span></div>
@@ -858,6 +859,7 @@
                         } catch(e) {}
                     });
                     fetchWorldInfo();
+                    fetchServerIP();
                     fetchWeatherConvars();
                 }, 500);
             };
@@ -1567,6 +1569,7 @@
         function refreshServerInfo() {
             refreshServerInfoSilent();
             fetchWorldInfo();
+            fetchServerIP();
             fetchWeatherConvars();
         }
 
@@ -1643,6 +1646,26 @@
                 if (slider) slider.value = 0;
                 if (label) label.textContent = '0.00';
                 sendRequest('weather.' + name + ' 0', function() {});
+            });
+        }
+
+        // ========== SERVER IP ==========
+        var cachedServerIP = '--';
+
+        function fetchServerIP() {
+            sendRequest('server.ip', function(data) {
+                var msg = (data.Message || '').trim();
+                // Response: 'server.ip: "1.2.3.4"' or just an IP
+                var match = msg.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+                if (match) {
+                    cachedServerIP = match[1];
+                } else if (msg) {
+                    // Strip convar prefix if present
+                    var cleaned = msg.replace(/^server\.ip:\s*"?/, '').replace(/"?$/, '').trim();
+                    if (cleaned) cachedServerIP = cleaned;
+                }
+                var el = document.getElementById('srv-ip');
+                if (el) el.textContent = cachedServerIP && cachedServerIP !== '--' && rconPort ? cachedServerIP + ':' + rconPort : cachedServerIP;
             });
         }
 
@@ -1770,7 +1793,8 @@
             // Server identity card
             document.getElementById('srv-hostname').textContent = info.Hostname || '--';
             document.getElementById('srv-hostname').title = info.Hostname || '';
-            document.getElementById('srv-ip').textContent = rconHost && rconPort ? rconHost + ':' + rconPort : '--';
+            document.getElementById('srv-dns').textContent = rconHost || '--';
+            // srv-ip is populated by fetchServerIP()
             document.getElementById('srv-maxplayers').textContent = max;
             document.getElementById('srv-restarting').textContent = info.Restarting ? 'Yes' : 'No';
             document.getElementById('srv-restarting').className = 'console-font ' + (info.Restarting ? 'text-red-400' : 'text-green-400');
