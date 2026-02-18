@@ -1089,10 +1089,11 @@
                 var pingColor = ping < 100 ? 'text-green-500' : (ping < 200 ? 'text-yellow-500' : 'text-red-500');
                 var ip = p.Address ? p.Address.split(':')[0] : '';
                 var initial = (p.DisplayName || '?')[0].toUpperCase();
+                var avatarUrl = steamAvatarCache[steamId] || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_medium.jpg';
 
                 return '<div class="player-card flex justify-between items-center bg-slate-800/50 border border-slate-700/30 p-3 rounded-lg transition cursor-pointer hover:bg-slate-700/50" onclick="showPlayerDetail(' + idx + ')">' +
                     '<div class="flex items-center gap-3">' +
-                        '<img src="https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_medium.jpg" data-steamid="' + steamId + '" class="player-avatar w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                        '<img src="' + avatarUrl + '" data-steamid="' + steamId + '" class="player-avatar w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
                         '<div class="w-8 h-8 rounded-full bg-slate-700 items-center justify-center text-xs font-bold text-sky-400" style="display:none">' + initial + '</div>' +
                         '<div>' +
                             '<span class="font-medium text-sm">' + name + '</span>' +
@@ -1176,7 +1177,16 @@
 
         function loadSteamAvatars(players) {
             players.forEach(function(p) {
-                if (!p.SteamID || steamProfileCache[p.SteamID]) return;
+                if (!p.SteamID) return;
+                if (steamProfileCache[p.SteamID]) {
+                    // Apply cached avatar to any new DOM elements
+                    var url = steamAvatarCache[p.SteamID];
+                    if (url) {
+                        var imgs = document.querySelectorAll('img[data-steamid="' + p.SteamID + '"]');
+                        imgs.forEach(function(img) { img.src = url; });
+                    }
+                    return;
+                }
                 fetchSteamProfile(p.SteamID);
             });
         }
