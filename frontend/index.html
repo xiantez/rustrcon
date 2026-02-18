@@ -1892,32 +1892,22 @@
                 }
             }
 
-            // Merge unloaded plugins: server-reported + previously UI-unloaded
-            // Build set of loaded plugin names for dedup
+            // Merge unloaded plugins: keep previously-known unloaded that aren't now loaded
             var loadedNames = {};
             currentPlugins.forEach(function(p) { loadedNames[p.name.toLowerCase()] = true; });
 
-            // Add server-reported unloaded plugins
+            // Remove from unloadedPlugins any that are now loaded (re-loaded since last check)
+            unloadedPlugins = unloadedPlugins.filter(function(p) {
+                return !loadedNames[p.name.toLowerCase()];
+            });
+
+            // Add server-reported unloaded that aren't already tracked
+            var unloadedNames = {};
+            unloadedPlugins.forEach(function(p) { unloadedNames[p.name.toLowerCase()] = true; });
             serverUnloaded.forEach(function(p) {
-                if (!loadedNames[p.name.toLowerCase()]) {
-                    loadedNames[p.name.toLowerCase()] = true;
+                if (!unloadedNames[p.name.toLowerCase()] && !loadedNames[p.name.toLowerCase()]) {
                     unloadedPlugins.push(p);
                 }
-            });
-
-            // Keep UI-unloaded plugins that haven't been re-loaded
-            unloadedPlugins = unloadedPlugins.filter(function(p) {
-                return !loadedNames[p.name.toLowerCase()] || !currentPlugins.some(function(lp) {
-                    return lp.name.toLowerCase() === p.name.toLowerCase();
-                });
-            });
-
-            // Add server-reported unloaded that aren't already in unloadedPlugins
-            serverUnloaded.forEach(function(p) {
-                var exists = unloadedPlugins.some(function(u) {
-                    return u.name.toLowerCase() === p.name.toLowerCase();
-                });
-                if (!exists) unloadedPlugins.push(p);
             });
 
             pluginsLoaded = true;
@@ -1935,37 +1925,27 @@
             var listEl = document.getElementById('plugins-list');
             var emptyEl = document.getElementById('plugins-empty');
             var failedSection = document.getElementById('plugins-failed-section');
-            var failedList = document.getElementById('plugins-failed-list');
+            failedSection.classList.add('hidden');
 
-            // Failed plugins
-            if (failedPlugins.length > 0) {
-                failedSection.classList.remove('hidden');
-                failedList.innerHTML = '';
-                failedPlugins.forEach(function(fp) {
-                    var el = document.createElement('div');
-                    el.className = 'flex items-center justify-between text-sm';
-                    el.innerHTML = '<span class=\"text-red-300 console-font\">' + escapeHtml(fp.name) + '</span>' +
-                        '<button onclick=\"pluginAction(\'load\', \'' + escapeAttr(fp.name) + '\')\" class=\"text-xs px-2 py-1 rounded bg-green-800/40 border border-green-700/30 text-green-400 hover:bg-green-800/60 transition\">Retry Load</button>';
-                    failedList.appendChild(el);
-                });
-            } else {
-                failedSection.classList.add('hidden');
-            }
-
-            // Main list — combine loaded + unloaded plugins
-            var allPlugins = currentPlugins.concat(unloadedPlugins);
+            // Combine loaded + unloaded + failed into one list
+            var failedWithState = failedPlugins.map(function(fp) {
+                return { name: fp.name, version: '', author: '', loaded: false, failed: true, raw: fp.raw };
+            });
+            var allPlugins = currentPlugins.concat(unloadedPlugins).concat(failedWithState);
             var searchTerm = (document.getElementById('plugin-search').value || '').toLowerCase();
             var filtered = allPlugins.filter(function(p) {
                 return !searchTerm || p.name.toLowerCase().indexOf(searchTerm) !== -1 || (p.author && p.author.toLowerCase().indexOf(searchTerm) !== -1);
             });
 
-            // Sort: loaded first, then alphabetical
+            // Sort: loaded first, then unloaded, then failed, then alphabetical
             filtered.sort(function(a, b) {
-                if (a.loaded !== b.loaded) return a.loaded ? -1 : 1;
+                var aOrder = a.failed ? 2 : (a.loaded ? 0 : 1);
+                var bOrder = b.failed ? 2 : (b.loaded ? 0 : 1);
+                if (aOrder !== bOrder) return aOrder - bOrder;
                 return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
             });
 
-            if (filtered.length === 0 && failedPlugins.length === 0) {
+            if (filtered.length === 0) {
                 listEl.innerHTML = '';
                 emptyEl.classList.remove('hidden');
                 return;
@@ -1974,45 +1954,54 @@
 
             listEl.innerHTML = '';
             filtered.forEach(function(p) {
-                var isLoaded = p.loaded !== false;
-                var statusDot = isLoaded
-                    ? '<span class=\"w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0\" title=\"Loaded\"></span>'
-                    : '<span class=\"w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0\" title=\"Unloaded\"></span>';
-                var statusBadge = isLoaded ? '' :
-                    '<span class=\"text-[11px] px-1.5 py-0.5 rounded bg-red-900/40 border border-red-800/30 text-red-400 console-font\">Unloaded</span>';
-                var cardOpacity = isLoaded ? '' : ' opacity-60';
+                var isLoaded = p.loaded === true;
+                var isFailed = p.failed === true;
+
+                var statusDot, statusBadge, cardOpacity;
+                if (isFailed) {
+                    statusDot = '<span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" title="Failed"></span>';
+                    statusBadge = '<span class="text-[11px] px-1.5 py-0.5 rounded bg-red-900/40 border border-red-800/30 text-red-400 console-font">Failed</span>';
+                    cardOpacity = ' opacity-50';
+                } else if (!isLoaded) {
+                    statusDot = '<span class="w-2 h-2 rounded-full bg-yellow-500 mt-1.5 shrink-0" title="Unloaded"></span>';
+                    statusBadge = '<span class="text-[11px] px-1.5 py-0.5 rounded bg-yellow-900/40 border border-yellow-800/30 text-yellow-400 console-font">Unloaded</span>';
+                    cardOpacity = ' opacity-70';
+                } else {
+                    statusDot = '<span class="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" title="Loaded"></span>';
+                    statusBadge = '';
+                    cardOpacity = '';
+                }
 
                 var buttons = '';
                 if (isLoaded) {
                     buttons =
-                        '  <button onclick=\"pluginAction(\'reload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-sky-800/30 border border-sky-700/30 text-sky-400 hover:bg-sky-800/50 transition\">Reload</button>' +
-                        '  <button onclick=\"pluginAction(\'unload\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-red-800/30 border border-red-700/30 text-red-400 hover:bg-red-800/50 transition\">Unload</button>';
+                        '<button onclick="pluginAction(\'reload\', \'' + escapeAttr(p.name) + '\')" class="flex-1 text-[11px] px-2 py-1.5 rounded bg-sky-800/30 border border-sky-700/30 text-sky-400 hover:bg-sky-800/50 transition">Reload</button>' +
+                        '<button onclick="pluginAction(\'unload\', \'' + escapeAttr(p.name) + '\')" class="flex-1 text-[11px] px-2 py-1.5 rounded bg-red-800/30 border border-red-700/30 text-red-400 hover:bg-red-800/50 transition">Unload</button>';
                 } else {
                     buttons =
-                        '  <button onclick=\"pluginAction(\'load\', \'' + escapeAttr(p.name) + '\')\" class=\"flex-1 text-[11px] px-2 py-1.5 rounded bg-green-800/30 border border-green-700/30 text-green-400 hover:bg-green-800/50 transition\">Load</button>';
+                        '<button onclick="pluginAction(\'load\', \'' + escapeAttr(p.name) + '\')" class="flex-1 text-[11px] px-2 py-1.5 rounded bg-green-800/30 border border-green-700/30 text-green-400 hover:bg-green-800/50 transition">Load</button>';
                 }
 
                 var card = document.createElement('div');
                 card.className = 't-card rounded-lg border p-4 overview-card' + cardOpacity;
                 card.innerHTML =
-                    '<div class=\"flex items-start justify-between mb-2\">' +
-                    '  <div class=\"min-w-0 flex-1\">' +
-                    '    <h3 class=\"text-sm font-semibold truncate\" style=\"color:var(--text-primary)\">' + escapeHtml(p.name) + '</h3>' +
-                    '    <div class=\"flex items-center gap-2 mt-0.5\">' +
-                    (p.version ? '      <span class=\"text-[11px] px-1.5 py-0.5 rounded bg-sky-900/40 border border-sky-800/30 text-sky-400 console-font\">v' + escapeHtml(p.version) + '</span>' : '') +
+                    '<div class="flex items-start justify-between mb-2">' +
+                    '<div class="min-w-0 flex-1">' +
+                    '<h3 class="text-sm font-semibold truncate" style="color:var(--text-primary)">' + escapeHtml(p.name) + '</h3>' +
+                    '<div class="flex items-center gap-2 mt-0.5">' +
+                    (p.version ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-sky-900/40 border border-sky-800/30 text-sky-400 console-font">v' + escapeHtml(p.version) + '</span>' : '') +
                     statusBadge +
-                    (p.author ? '      <span class=\"text-[11px] t-muted\">by ' + escapeHtml(p.author) + '</span>' : '') +
-                    '    </div>' +
-                    '  </div>' +
+                    (p.author ? '<span class="text-[11px] t-muted">by ' + escapeHtml(p.author) + '</span>' : '') +
+                    '</div></div>' +
                     statusDot +
                     '</div>' +
-                    '<div class=\"flex gap-1.5 mt-3\">' +
-                    buttons +
-                    '</div>';
+                    '<div class="flex gap-1.5 mt-3">' + buttons + '</div>';
                 listEl.appendChild(card);
             });
         }
-
+                    el.innerHTML = '<span class=\"text-red-300 console-font\">' + escapeHtml(fp.name) + '</span>' +
+                        '<button onclick=\"pluginAction(\'load\', \'' + escapeAttr(fp.name) + '\')\" class=\"text-xs px-2 py-1 rounded bg-green-800/40 border border-green-700/30 text-green-400 hover:bg-green-800/60 transition\">Retry Load</button>';
+                    failedList.appendChild(el);
         function escapeAttr(str) {
             return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         }
