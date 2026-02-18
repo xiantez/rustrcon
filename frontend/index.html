@@ -556,9 +556,20 @@
                         <div id="plugins-failed-list" class="space-y-1.5"></div>
                     </div>
                 </div>
+                <!-- Raw Output Debug -->
+                <div id="plugins-raw-section" class="hidden mb-4">
+                    <div class="bg-slate-900/80 border border-slate-700/50 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-semibold t-muted uppercase tracking-wide">Raw Server Response</h3>
+                            <button onclick="document.getElementById('plugins-raw-section').classList.add('hidden')" class="text-xs t-muted hover:text-white">&times; Close</button>
+                        </div>
+                        <pre id="plugins-raw-output" class="text-xs console-font text-slate-300 whitespace-pre-wrap break-all max-h-64 overflow-y-auto custom-scrollbar bg-black/30 rounded p-3"></pre>
+                    </div>
+                </div>
                 <!-- Search -->
-                <div class="mb-4">
-                    <input type="text" id="plugin-search" class="w-full bg-slate-900 border border-slate-700 px-4 py-2.5 rounded-lg text-sm focus:outline-none focus:border-sky-500 transition" placeholder="Search plugins..." oninput="filterPlugins()">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="plugin-search" class="flex-1 bg-slate-900 border border-slate-700 px-4 py-2.5 rounded-lg text-sm focus:outline-none focus:border-sky-500 transition" placeholder="Search plugins..." oninput="filterPlugins()">
+                    <button onclick="togglePluginRaw()" class="text-xs px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 t-muted hover:text-white hover:border-slate-600 transition">Raw</button>
                 </div>
                 <!-- Plugin Grid -->
                 <div id="plugins-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-1 custom-scrollbar"></div>
@@ -1693,6 +1704,13 @@
         var pluginsLoaded = false;
         var currentPlugins = [];
         var failedPlugins = [];
+        var pluginRawResponse = '';
+
+        function togglePluginRaw() {
+            var sec = document.getElementById('plugins-raw-section');
+            sec.classList.toggle('hidden');
+            document.getElementById('plugins-raw-output').textContent = pluginRawResponse || '(no response yet)';
+        }
 
         function refreshPlugins() {
             pluginsLoaded = false;
@@ -1708,8 +1726,10 @@
             // Try Carbon first
             sendRequest('c.plugins', function(data) {
                 var msg = data.Message || '';
+                console.log('[Plugins] c.plugins raw response:', JSON.stringify(msg));
                 if (msg && msg.indexOf('Unknown command') === -1 && msg.indexOf('not recognized') === -1 && msg.trim().length > 10) {
                     pluginFramework = 'carbon';
+                    pluginRawResponse = msg;
                     frameworkEl.textContent = '⚡ Carbon';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-900/40 border border-emerald-700/40 text-emerald-400';
                     parsePlugins(msg);
@@ -1718,8 +1738,10 @@
                 // Try Oxide
                 sendRequest('o.plugins', function(data2) {
                     var msg2 = data2.Message || '';
+                    console.log('[Plugins] o.plugins raw response:', JSON.stringify(msg2));
                     if (msg2 && msg2.indexOf('Unknown command') === -1 && msg2.trim().length > 10) {
                         pluginFramework = 'oxide';
+                        pluginRawResponse = msg2;
                         frameworkEl.textContent = '🔶 Oxide';
                         frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-orange-900/40 border border-orange-700/40 text-orange-400';
                         parsePlugins(msg2);
@@ -1727,6 +1749,7 @@
                     }
                     // Neither found
                     pluginFramework = '';
+                    pluginRawResponse = 'c.plugins: ' + msg + '\no.plugins: ' + msg2;
                     frameworkEl.textContent = 'No Framework';
                     frameworkEl.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-400';
                     pluginsLoaded = true;
@@ -1739,59 +1762,137 @@
             currentPlugins = [];
             failedPlugins = [];
 
-            // Normalize: might have \n or actual newlines
+            // Normalize: might have literal \n or actual newlines
             var lines = raw.replace(/\\n/g, '\n').split('\n');
+
+            console.log('[Plugins] Parsing', lines.length, 'lines');
+            console.log('[Plugins] Raw text:', raw);
+
+            // Carbon outputs sections separated by "* unloaded plugins" and "* failed plugins"
+            // We parse by section: 'loaded' (default), 'unloaded', 'failed'
+            var section = 'loaded';
 
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i].trim();
                 if (!line) continue;
 
-                // Detect plugin listing header & skip
-                if (/^listing\s+\d+/i.test(line)) continue;
-                if (/^plugins?\s*$/i.test(line)) continue;
-
-                // Failed plugins: look for lines with "failed" or "not loaded" or specific patterns
-                var failedMatch = line.match(/^\d+\s+\"?(.+?)\"?\s+.*(?:failed|not loaded|error)/i);
-                if (failedMatch) {
-                    failedPlugins.push({ name: failedMatch[1].trim(), raw: line });
+                // Detect section headers (Carbon format: "* failed plugins", "* unloaded plugins")
+                if (/^\*\s*failed\s+plugins?/i.test(line)) {
+                    section = 'failed';
+                    console.log('[Plugins] Entering failed section');
+                    continue;
+                }
+                if (/^\*\s*unloaded\s+plugins?/i.test(line)) {
+                    section = 'unloaded';
+                    console.log('[Plugins] Entering unloaded section');
                     continue;
                 }
 
-                // Carbon format: 01 PluginName v1.0.0 by Author
-                // Oxide format: 01 "PluginName" (1.0.0) by Author  or  01 PluginName (1.0.0) by Author
-                var pluginMatch = line.match(/^(\d+)\s+\"?(.+?)\"?\s+(?:v?([\d.]+)|\(([\d.]+)\))(?:\s+by\s+(.+))?/i);
-                if (pluginMatch) {
+                // Skip header/summary lines
+                if (/^listing\s+\d+/i.test(line)) continue;
+                if (/^plugins?\s*(\(|$)/i.test(line)) continue;
+                if (/^loaded\s+plugins/i.test(line)) continue;
+                if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
+                if (/^total:/i.test(line)) continue;
+
+                // If we're in the failed section, add to failedPlugins
+                if (section === 'failed') {
+                    var failName = line.replace(/^\d+\.?\s*/, '').replace(/"/g, '').trim();
+                    if (failName) {
+                        failedPlugins.push({ name: failName, raw: line });
+                        console.log('[Plugins] Failed plugin:', failName);
+                    }
+                    continue;
+                }
+
+                // If we're in the unloaded section, skip (or optionally track)
+                if (section === 'unloaded') {
+                    console.log('[Plugins] Unloaded (skipped):', line);
+                    continue;
+                }
+
+                // === Parse loaded plugin lines ===
+                var m;
+
+                // Carbon format: "01. PluginName by AuthorName v1.0.0, extra..."
+                // or: "01. PluginName by AuthorName v1.0.0 [cs] | 132µs"
+                // Key: "by Author" comes BEFORE the version in Carbon
+                m = line.match(/^(\d+)\.?\s+(.+?)\s+by\s+(\S+)\s+v([\d.]+)/i);
+                if (m) {
                     currentPlugins.push({
-                        index: parseInt(pluginMatch[1]),
-                        name: pluginMatch[2].trim(),
-                        version: pluginMatch[3] || pluginMatch[4] || '',
-                        author: (pluginMatch[5] || '').trim(),
+                        index: parseInt(m[1]),
+                        name: m[2].trim(),
+                        version: m[4],
+                        author: m[3].trim(),
                         raw: line
                     });
+                    console.log('[Plugins] Carbon parsed:', m[2].trim(), 'v' + m[4], 'by', m[3].trim());
                     continue;
                 }
 
-                // Fallback: try simpler pattern — number then name
-                var simpleMatch = line.match(/^(\d+)\s+(.+)/);
-                if (simpleMatch) {
-                    var rest = simpleMatch[2].trim();
-                    // Check if it's a failed one
-                    if (/fail|error|not loaded/i.test(rest)) {
-                        failedPlugins.push({ name: rest, raw: line });
-                    } else {
-                        currentPlugins.push({
-                            index: parseInt(simpleMatch[1]),
-                            name: rest.replace(/["()]/g, '').split(/\s+/)[0],
-                            version: '',
-                            author: '',
-                            raw: line
-                        });
-                    }
+                // Oxide format: '01 "PluginName" (1.0.0) by Author' or '01 PluginName v1.0.0 by Author'
+                // Key: version comes BEFORE "by Author" in Oxide
+                m = line.match(/^(\d+)\.?\s+\"?(.+?)\"?\s+(?:\(?v?([\d.]+)\)?|\(([\d.]+)\))\s+by\s+(.+?)(?:\s*[,\[\(|].*)?$/i);
+                if (m) {
+                    currentPlugins.push({
+                        index: parseInt(m[1]),
+                        name: m[2].trim(),
+                        version: m[3] || m[4] || '',
+                        author: m[5].trim(),
+                        raw: line
+                    });
+                    console.log('[Plugins] Oxide parsed:', m[2].trim(), 'v' + (m[3] || m[4]), 'by', m[5].trim());
+                    continue;
                 }
+
+                // No "by" keyword: "01. PluginName v1.0.0 extra..."
+                m = line.match(/^(\d+)\.?\s+(.+?)\s+v([\d.]+)/i);
+                if (m) {
+                    currentPlugins.push({
+                        index: parseInt(m[1]),
+                        name: m[2].trim().replace(/"/g, ''),
+                        version: m[3],
+                        author: '',
+                        raw: line
+                    });
+                    console.log('[Plugins] No-author parsed:', m[2].trim(), 'v' + m[3]);
+                    continue;
+                }
+
+                // Oxide with parenthesized version: '01 "PluginName" (1.0.0)'
+                m = line.match(/^(\d+)\.?\s+\"?(.+?)\"?\s+\(([\d.]+)\)/i);
+                if (m) {
+                    currentPlugins.push({
+                        index: parseInt(m[1]),
+                        name: m[2].trim(),
+                        version: m[3],
+                        author: '',
+                        raw: line
+                    });
+                    console.log('[Plugins] Paren-version parsed:', m[2].trim(), 'v' + m[3]);
+                    continue;
+                }
+
+                // Last fallback: number + text
+                m = line.match(/^(\d+)\.?\s+(.+)/);
+                if (m) {
+                    currentPlugins.push({
+                        index: parseInt(m[1]),
+                        name: m[2].trim().replace(/"/g, '').split(/\s+/)[0],
+                        version: '',
+                        author: '',
+                        raw: line
+                    });
+                    console.log('[Plugins] Basic fallback:', m[2].trim());
+                    continue;
+                }
+
+                console.log('[Plugins] Unparsed line:', line);
             }
 
             pluginsLoaded = true;
             document.getElementById('plugin-count-badge').textContent = currentPlugins.length;
+            console.log('[Plugins] Total parsed:', currentPlugins.length, 'Failed:', failedPlugins.length);
             renderPluginList();
         }
 
