@@ -54,6 +54,22 @@ app.get('/api/steam/:steamid', function(req, res) {
     });
 });
 
+// DNS resolve endpoint - resolves hostname to public IP
+app.get('/api/resolve/:hostname', function(req, res) {
+    var dns = require('dns');
+    var hostname = req.params.hostname;
+    dns.resolve4(hostname, function(err, addresses) {
+        if (err || !addresses || !addresses.length) {
+            // If DNS fails, the hostname might already be an IP
+            if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+                return res.json({ ip: hostname });
+            }
+            return res.json({ ip: null, error: 'Could not resolve' });
+        }
+        res.json({ ip: addresses[0] });
+    });
+});
+
 var PORT = process.env.PORT || 3001;
 var server = app.listen(PORT, function() {
     console.log("RCON Dashboard running on http://localhost:" + PORT);
