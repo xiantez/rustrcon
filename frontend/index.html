@@ -1765,76 +1765,119 @@
             // Normalize: server sends literal \n (two chars) as line separators
             var text = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             var lines = text.split('\n');
+            var hasTabs = text.indexOf('\t') !== -1;
 
-            console.log('[Plugins] Parsing', lines.length, 'lines');
+            console.log('[Plugins] Parsing', lines.length, 'lines, hasTabs:', hasTabs);
 
             // Track failed section (Carbon: "* failed plugins" header)
             var inFailedSection = false;
+            var pluginIndex = 0;
 
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i].trim();
                 if (!line) continue;
 
+                // Skip column header line
+                if (/^#\s/.test(line)) continue;
+
                 // Section headers
                 if (/^\*\s*failed\s+plugins?/i.test(line)) { inFailedSection = true; continue; }
-                if (/^\*\s*\w+/.test(line)) { inFailedSection = false; continue; }
-                if (/^listing\s+/i.test(line)) { inFailedSection = false; continue; }
+                if (/^\*\s/.test(line)) { inFailedSection = false; continue; }
+
+                // Oxide-specific meta lines
+                if (/^listing\s+/i.test(line)) continue;
                 if (/^total:/i.test(line)) continue;
                 if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
 
-                // Must start with a number
-                var numMatch = line.match(/^(\d+)\.?\s+(.*)/);
-                if (!numMatch) continue;
+                // Skip Carbon package header lines (numbered, NO version pattern)
+                // e.g. "1 Carbon Community (1) Core", "2 Scripts (217)", "3 Zip Scripts"
+                if (/^\d+\s+\S/.test(line) && !/v[\d.]+/i.test(line)) continue;
 
-                var idx = parseInt(numMatch[1]);
-                var rest = numMatch[2].trim();
+                // Must have a version pattern to be a plugin line
+                if (!/v[\d.]+/i.test(line)) continue;
 
                 if (inFailedSection) {
-                    failedPlugins.push({ name: rest.replace(/"/g, ''), raw: line });
+                    var fName = line.replace(/^\d+\.?\s*/, '').replace(/\s+v[\d.]+.*$/, '').replace(/"/g, '').trim();
+                    if (fName) failedPlugins.push({ name: fName, raw: line });
                     continue;
                 }
 
-                // Parse plugin: try to find version pattern
-                var pName = rest, pVersion = '', pAuthor = '';
+                var pName = '', pAuthor = '', pVersion = '';
 
-                // Match everything up to the LAST occurrence of vX.X.X
-                var vMatch = rest.match(/^(.+)\s+v([\d.]+)/i);
-                if (!vMatch) vMatch = rest.match(/^(.+)\s+\(([\d.]+)\)/);
+                // Strategy 1: Tab-separated columns (Carbon tabular output)
+                if (hasTabs) {
+                    var cols = line.split('\t');
+                    // Find the version column
+                    var vIdx = -1;
+                    for (var c = 0; c < cols.length; c++) {
+                        if (/^v[\d.]+$/i.test(cols[c].trim())) { vIdx = c; break; }
+                    }
+                    if (vIdx >= 2) {
+                        pVersion = cols[vIdx].trim().replace(/^v/i, '');
+                        var nameCol = 0;
+                        if (/^\d+$/.test(cols[0].trim())) nameCol = 1;
+                        pName = cols[nameCol] ? cols[nameCol].trim() : '';
+                        pAuthor = (vIdx > nameCol + 1 && cols[nameCol + 1]) ? cols[nameCol + 1].trim() : '';
+                    }
+                }
 
-                if (vMatch) {
-                    var beforeVersion = vMatch[1].trim();
-                    pVersion = vMatch[2];
+                // Strategy 2: Regex-based parsing (space-separated or tab fallback)
+                if (!pVersion) {
+                    // Oxide format: 01. "PluginName" (v1.0.0) by Author
+                    var oxideMatch = line.match(/^\d+\.?\s+"?(.+?)"?\s+(?:\()?v([\d.]+)(?:\))?\s+by\s+(.+?)(?:\s+-|$)/i);
+                    if (!oxideMatch) oxideMatch = line.match(/^\d+\.?\s+"?(.+?)"?\s+(?:\()?v([\d.]+)(?:\))?\s+by\s+(.+)/i);
 
-                    // Check for explicit "by Author" before version
-                    var byMatch = beforeVersion.match(/^(.+?)\s+by\s+(\S+)$/i);
-                    if (byMatch) {
-                        pName = byMatch[1].trim();
-                        pAuthor = byMatch[2].trim();
+                    if (oxideMatch) {
+                        pName = oxideMatch[1].trim();
+                        pVersion = oxideMatch[2];
+                        pAuthor = oxideMatch[3].trim();
                     } else {
-                        // Carbon style: last word before version is author
-                        // e.g. "Copy Paste misticos" → name="Copy Paste", author="misticos"
-                        var lastSpace = beforeVersion.lastIndexOf(' ');
-                        if (lastSpace > 0) {
-                            pName = beforeVersion.substring(0, lastSpace).trim();
-                            pAuthor = beforeVersion.substring(lastSpace + 1).trim();
+                        // Generic: everything up to first vX.X.X
+                        var vMatch = line.match(/^(.+?)\s+v([\d.]+)/i);
+                        if (!vMatch) continue;
+
+                        var prefix = vMatch[1].trim();
+                        pVersion = vMatch[2];
+
+                        // Strip leading index number if present
+                        prefix = prefix.replace(/^\d+\.?\s+/, '');
+
+                        // Strip trailing parenthetical notes like "(Fixed for carbon)"
+                        var cleanPrefix = prefix.replace(/\s*\([^)]*\)\s*$/, '');
+
+                        // Try explicit "by Author" pattern
+                        var byM = cleanPrefix.match(/^(.+?)\s+by\s+(.+)$/i);
+                        if (byM) {
+                            pName = byM[1].trim();
+                            pAuthor = byM[2].trim();
                         } else {
-                            pName = beforeVersion;
+                            // Carbon: split name and author using connector-aware word grouping
+                            // Walk backwards from end, grouping words connected by & , and
+                            var words = cleanPrefix.split(/\s+/);
+                            if (words.length >= 2) {
+                                var authorStart = words.length - 1;
+                                while (authorStart > 1) {
+                                    var prev = words[authorStart - 1];
+                                    if (prev === '&' || prev === ',' || prev === 'and' || prev.endsWith(',')) {
+                                        authorStart -= 2;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                if (authorStart < 1) authorStart = words.length - 1;
+                                pAuthor = words.slice(authorStart).join(' ').replace(/,\s*$/, '');
+                                pName = words.slice(0, authorStart).join(' ');
+                            } else {
+                                pName = cleanPrefix;
+                            }
                         }
                     }
-
-                    // Also check for "by Author" after version (Oxide style)
-                    if (!pAuthor) {
-                        var afterV = rest.substring(vMatch[0].length);
-                        var byAfter = afterV.match(/\s+by\s+(\S+)/i);
-                        if (byAfter) pAuthor = byAfter[1].trim();
-                    }
-                } else {
-                    pName = rest.replace(/"/g, '').trim();
                 }
 
                 pName = pName.replace(/"/g, '').trim();
-                if (pName) {
-                    currentPlugins.push({ index: idx, name: pName, version: pVersion, author: pAuthor, raw: line });
+                if (pName && pVersion) {
+                    pluginIndex++;
+                    currentPlugins.push({ index: pluginIndex, name: pName, version: pVersion, author: pAuthor, raw: line });
                 }
             }
 
