@@ -1029,10 +1029,10 @@
                         '<span class="text-xs ' + pingColor + ' console-font">' + ping + 'ms</span>' +
                         '<span class="text-xs text-slate-500">' + ip + '</span>' +
                         '<div class="flex gap-1" onclick="event.stopPropagation()">' +
-                            '<button onclick="killPlayer(\'' + steamId + '\', \'' + name + '\')" class="text-xs bg-orange-700/50 hover:bg-orange-600 px-2 py-1 rounded transition">Kill</button>' +
-                            '<button id="mute-btn-' + steamId + '" onclick="toggleMutePlayer(\'' + steamId + '\', \'' + name + '\')" class="text-xs ' + (mutedPlayers[steamId] ? 'bg-purple-500/70 hover:bg-purple-400' : 'bg-purple-700/50 hover:bg-purple-600') + ' px-2 py-1 rounded transition">' + (mutedPlayers[steamId] ? 'Unmute' : 'Mute') + '</button>' +
-                            '<button onclick="kickPlayer(\'' + steamId + '\')" class="text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-1 rounded transition">Kick</button>' +
-                            '<button onclick="banPlayer(\'' + steamId + '\', \'' + name + '\')" class="text-xs bg-red-700/50 hover:bg-red-600 px-2 py-1 rounded transition">Ban</button>' +
+                            '<button onclick="killPlayer(' + idx + ')" class="text-xs bg-orange-700/50 hover:bg-orange-600 px-2 py-1 rounded transition">Kill</button>' +
+                            '<button id="mute-btn-' + steamId + '" onclick="toggleMutePlayer(' + idx + ')" class="text-xs ' + (mutedPlayers[steamId] ? 'bg-purple-500/70 hover:bg-purple-400' : 'bg-purple-700/50 hover:bg-purple-600') + ' px-2 py-1 rounded transition">' + (mutedPlayers[steamId] ? 'Unmute' : 'Mute') + '</button>' +
+                            '<button onclick="kickPlayer(' + idx + ')" class="text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-1 rounded transition">Kick</button>' +
+                            '<button onclick="banPlayer(' + idx + ')" class="text-xs bg-red-700/50 hover:bg-red-600 px-2 py-1 rounded transition">Ban</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -1042,27 +1042,32 @@
             loadSteamAvatars(players);
         }
 
-        function killPlayer(steamId, name) {
-            sendCmd('killplayer "' + (name || steamId) + '"');
-            appendConsole('Killed ' + (name || steamId), 'text-orange-400');
-            showToast('Killed ' + (name || steamId), 'success');
+        function killPlayer(idx) {
+            var p = currentPlayers[idx];
+            if (!p) return;
+            var name = p.DisplayName || p.SteamID;
+            sendCmd('killplayer "' + name + '"');
+            appendConsole('Killed ' + name, 'text-orange-400');
+            showToast('Killed ' + name, 'success');
         }
 
-        function toggleMutePlayer(steamId, name) {
+        function toggleMutePlayer(idx) {
+            var p = currentPlayers[idx];
+            if (!p) return;
+            var steamId = p.SteamID;
+            var name = p.DisplayName || steamId;
             if (mutedPlayers[steamId]) {
                 sendCmd('unmute "' + steamId + '"');
                 delete mutedPlayers[steamId];
-                appendConsole('Unmuted ' + (name || steamId), 'text-purple-400');
-                showToast('Unmuted ' + (name || steamId), 'success');
+                appendConsole('Unmuted ' + name, 'text-purple-400');
+                showToast('Unmuted ' + name, 'success');
             } else {
                 sendCmd('mute "' + steamId + '"');
                 mutedPlayers[steamId] = true;
-                appendConsole('Muted ' + (name || steamId), 'text-purple-400');
-                showToast('Muted ' + (name || steamId), 'success');
+                appendConsole('Muted ' + name, 'text-purple-400');
+                showToast('Muted ' + name, 'success');
             }
-            // Re-render to update button states
             if (typeof renderPlayers === 'function' && currentPlayers.length) renderPlayers(currentPlayers);
-            // Update detail panel mute button if open
             var pdMuteBtn = document.getElementById('pd-mute-btn');
             if (pdMuteBtn) {
                 pdMuteBtn.textContent = mutedPlayers[steamId] ? 'Unmute' : 'Mute';
@@ -1070,13 +1075,20 @@
             }
         }
 
-        function kickPlayer(steamId) {
+        function kickPlayer(idx) {
+            var p = currentPlayers[idx];
+            if (!p) return;
+            var steamId = p.SteamID;
             sendCmd('kick "' + steamId + '" "Kicked by admin"');
             appendConsole('Kicked ' + steamId, 'text-yellow-400');
             showToast('Kicked player ' + steamId, 'success');
         }
 
-        function banPlayer(steamId, name) {
+        function banPlayer(idx) {
+            var p = currentPlayers[idx];
+            if (!p) return;
+            var steamId = p.SteamID;
+            var name = p.DisplayName || steamId;
             if (confirm('Ban ' + name + '?')) {
                 sendCmd('ban "' + steamId + '" "Banned by admin"');
                 appendConsole('Banned ' + steamId, 'text-red-400');
@@ -1185,14 +1197,14 @@
             document.getElementById('pd-steam-link').href = 'https://steamcommunity.com/profiles/' + steamId;
             document.getElementById('pd-battlemetrics-link').href = 'https://www.battlemetrics.com/rcon/players?filter%5Bsearch%5D=' + steamId;
 
-            // Action buttons
-            document.getElementById('pd-kill-btn').onclick = function() { killPlayer(steamId, name); };
+            // Action buttons (use playerIndex to look up raw data)
+            document.getElementById('pd-kill-btn').onclick = function() { killPlayer(playerIndex); };
             var pdMuteBtn = document.getElementById('pd-mute-btn');
             pdMuteBtn.textContent = mutedPlayers[steamId] ? 'Unmute' : 'Mute';
             pdMuteBtn.className = 'flex-1 text-xs px-2 py-2 rounded transition ' + (mutedPlayers[steamId] ? 'bg-purple-500/70 hover:bg-purple-400' : 'bg-purple-700/50 hover:bg-purple-600');
-            pdMuteBtn.onclick = function() { toggleMutePlayer(steamId, name); };
-            document.getElementById('pd-kick-btn').onclick = function() { kickPlayer(steamId); };
-            document.getElementById('pd-ban-btn').onclick = function() { banPlayer(steamId, name); };
+            pdMuteBtn.onclick = function() { toggleMutePlayer(playerIndex); };
+            document.getElementById('pd-kick-btn').onclick = function() { kickPlayer(playerIndex); };
+            document.getElementById('pd-ban-btn').onclick = function() { banPlayer(playerIndex); };
 
             // Highlight selected player in list
             document.querySelectorAll('#player-list .player-card').forEach(function(card, i) {
