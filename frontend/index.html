@@ -1900,19 +1900,49 @@
             document.getElementById('plugins-raw-output').textContent = pluginRawResponse || '(no response yet)';
         }
 
+        var pluginRefreshInterval = null;
+
         function refreshPlugins() {
+            // Fully reset state so stale data is never shown
             pluginsLoaded = false;
+            pluginMap = {};
+            pluginRawResponse = '';
+            // Clear UI immediately
+            var listEl = document.getElementById('plugins-list');
+            if (listEl) listEl.innerHTML = '';
+            var failedSection = document.getElementById('plugins-failed-section');
+            if (failedSection) failedSection.classList.add('hidden');
             detectFrameworkAndLoad();
+        }
+
+        function startPluginAutoRefresh() {
+            stopPluginAutoRefresh();
+            pluginRefreshInterval = setInterval(function() {
+                if (socket && socket.readyState === WebSocket.OPEN && document.querySelector('.sidebar-btn[data-tab="plugins"].active')) {
+                    detectFrameworkAndLoad();
+                }
+            }, 5000);
+        }
+
+        function stopPluginAutoRefresh() {
+            if (pluginRefreshInterval) {
+                clearInterval(pluginRefreshInterval);
+                pluginRefreshInterval = null;
+            }
         }
 
         function detectFrameworkAndLoad() {
             var frameworkEl = document.getElementById('plugin-framework');
             frameworkEl.textContent = 'Detecting...';
 
+            // Always clear stale state before fetching fresh data
+            pluginMap = {};
+            pluginRawResponse = '';
+
             // Try Carbon first
             sendRequest('c.plugins', function(data) {
                 var msg = data.Message || '';
-                console.log('[Plugins] c.plugins response (' + msg.length + ' chars):', msg.substring(0, 300));
+                console.log('[Plugins] RAW c.plugins response:', msg);
                 if (msg && msg.indexOf('Unknown command') === -1 && msg.indexOf('not recognized') === -1 && msg.trim().length > 10) {
                     pluginFramework = 'carbon';
                     pluginRawResponse = msg;
@@ -1945,6 +1975,9 @@
         }
 
         function parsePlugins(raw) {
+            // Clear plugin map on each refresh so removed plugins don't persist
+            pluginMap = {};
+
             // Track which plugins the server reports as loaded this time
             var serverLoaded = {};
             var serverFailed = {};
@@ -1976,19 +2009,44 @@
                 if (/^total:/i.test(line)) continue;
                 if (/^\d+\s+plugins?\s+loaded/i.test(line)) continue;
 
+                // Handle failed plugins BEFORE the version check — failed lines may not have versions
+                if (currentSection === 'failed') {
+                    // Skip sub-header lines like "line   stacktrace"
+                    if (/^\s*line\s+stacktrace/i.test(line)) continue;
+                    // Carbon failed format: "PluginName.cs  11:30  error message"
+                    // or just "PluginName  v1.0.0 ..."
+                    var fName = '';
+                    var fError = '';
+                    // Try Carbon .cs format: "Test.cs  11:30  error details"
+                    var csMatch = line.match(/^(\S+\.cs)\s+(\d+:\d+)\s+(.*)/i);
+                    if (csMatch) {
+                        fName = csMatch[1].replace(/\.cs$/i, '');
+                        fError = csMatch[3] ? csMatch[3].trim() : '';
+                        // Accumulate errors for same plugin
+                        var fKey = fName.toLowerCase();
+                        if (serverFailed[fKey]) {
+                            serverFailed[fKey].errors.push({ line: csMatch[2], message: fError });
+                        } else {
+                            serverFailed[fKey] = { name: fName, raw: line, errors: [{ line: csMatch[2], message: fError }] };
+                        }
+                    } else {
+                        // Fallback: versioned format or plain name
+                        fName = line.replace(/^\d+\.?\s*/, '').replace(/\s+v[\d.]+.*$/, '').replace(/\.cs$/i, '').replace(/"/g, '').trim();
+                        if (fName) {
+                            var fKey2 = fName.toLowerCase();
+                            if (!serverFailed[fKey2]) {
+                                serverFailed[fKey2] = { name: fName, raw: line, errors: [] };
+                            }
+                        }
+                    }
+                    continue;
+                }
+
                 // Skip Carbon package header lines (numbered, NO version pattern)
                 if (/^\d+\s+\S/.test(line) && !/v[\d.]+/i.test(line)) continue;
 
                 // Must have a version pattern to be a plugin line
                 if (!/v[\d.]+/i.test(line)) continue;
-
-                if (currentSection === 'failed') {
-                    var fName = line.replace(/^\d+\.?\s*/, '').replace(/\s+v[\d.]+.*$/, '').replace(/"/g, '').trim();
-                    if (fName) {
-                        serverFailed[fName.toLowerCase()] = { name: fName, raw: line };
-                    }
-                    continue;
-                }
 
                 var pName = '', pAuthor = '', pVersion = '';
 
@@ -2073,23 +2131,30 @@
             }
 
             // Update loaded state for all known plugins based on server response
+            // Remove plugins that no longer appear on the server at all
             Object.keys(pluginMap).forEach(function(key) {
                 if (serverLoaded[key]) {
                     pluginMap[key].loaded = true;
                     pluginMap[key].failed = false;
+                    pluginMap[key].errors = [];
                 } else if (serverFailed[key]) {
                     pluginMap[key].loaded = false;
                     pluginMap[key].failed = true;
+                } else {
+                    // Plugin no longer reported by server — remove it
+                    delete pluginMap[key];
                 }
-                // If not in serverLoaded and not in serverFailed, keep existing state
-                // (preserves unloaded-via-UI plugins)
             });
 
-            // Add any failed plugins not already in the map
+            // Add any failed plugins not already in the map (or update existing)
             Object.keys(serverFailed).forEach(function(key) {
+                var fp = serverFailed[key];
                 if (!pluginMap[key]) {
-                    var fp = serverFailed[key];
-                    pluginMap[key] = { name: fp.name, version: '', author: '', loaded: false, failed: true, raw: fp.raw };
+                    pluginMap[key] = { name: fp.name, version: '', author: '', loaded: false, failed: true, raw: fp.raw, errors: fp.errors || [] };
+                } else {
+                    pluginMap[key].loaded = false;
+                    pluginMap[key].failed = true;
+                    pluginMap[key].errors = fp.errors || [];
                 }
             });
 
@@ -2111,10 +2176,40 @@
             var listEl = document.getElementById('plugins-list');
             var emptyEl = document.getElementById('plugins-empty');
             var failedSection = document.getElementById('plugins-failed-section');
+            var failedListEl = document.getElementById('plugins-failed-list');
             failedSection.classList.add('hidden');
 
             // Build array from persistent map
             var allPlugins = Object.keys(pluginMap).map(function(k) { return pluginMap[k]; });
+
+            // Show failed plugins banner
+            var failedPlugins = allPlugins.filter(function(p) { return p.failed === true; });
+            if (failedPlugins.length > 0) {
+                failedSection.classList.remove('hidden');
+                failedListEl.innerHTML = '';
+                failedPlugins.forEach(function(fp) {
+                    var item = document.createElement('div');
+                    item.className = 'py-2' + (failedPlugins.indexOf(fp) > 0 ? ' border-t border-red-800/20 mt-1' : '');
+                    var errorsHtml = '';
+                    if (fp.errors && fp.errors.length > 0) {
+                        errorsHtml = '<div class="mt-1.5 space-y-0.5">';
+                        fp.errors.forEach(function(err) {
+                            errorsHtml += '<div class="text-[11px] text-red-400/70 console-font pl-3 flex gap-2">' +
+                                '<span class="text-red-400/50 shrink-0">Line ' + escapeHtml(err.line) + '</span>' +
+                                '<span>' + escapeHtml(err.message) + '</span>' +
+                                '</div>';
+                        });
+                        errorsHtml += '</div>';
+                    }
+                    item.innerHTML =
+                        '<div class="flex items-center justify-between">' +
+                        '<span class="text-sm text-red-300 font-medium">' + escapeHtml(fp.name) + '.cs' + (fp.version ? ' <span class="text-red-400/60 text-xs">v' + escapeHtml(fp.version) + '</span>' : '') + '</span>' +
+                        '<button onclick="pluginAction(\'load\', \'' + escapeAttr(fp.name) + '\')" class="text-[11px] px-2 py-1 rounded bg-red-800/30 border border-red-700/30 text-red-400 hover:bg-red-800/50 transition shrink-0">Retry Load</button>' +
+                        '</div>' +
+                        errorsHtml;
+                    failedListEl.appendChild(item);
+                });
+            }
             var searchTerm = (document.getElementById('plugin-search').value || '').toLowerCase();
             var filtered = allPlugins.filter(function(p) {
                 return !searchTerm || p.name.toLowerCase().indexOf(searchTerm) !== -1 || (p.author && p.author.toLowerCase().indexOf(searchTerm) !== -1);
@@ -2343,6 +2438,7 @@
         // ========== START ==========
         // Don't auto-connect — wait for login
         startStatsAutoRefresh();
+        startPluginAutoRefresh();
     </script>
 </body>
 </html>

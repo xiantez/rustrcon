@@ -30,21 +30,16 @@ if [ ! -d "node_modules" ]; then
     npm install --silent
 else
     echo "  ✅  Dependencies already installed"
+    # Ensure dependencies are current
+    npm install --silent
 fi
 
 # Check if port is already in use
 if lsof -ti:$PORT &>/dev/null; then
-    echo "  ⚠️   Port $PORT is already in use."
-    read -r -p "  Kill the existing process and continue? [Y/n] " answer
-    answer=${answer:-Y}
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        lsof -ti:$PORT | xargs kill -9 2>/dev/null
-        sleep 1
-        echo "  ✅  Cleared port $PORT"
-    else
-        echo "  💡  Use a different port: PORT=3002 ./start.sh"
-        exit 1
-    fi
+    echo "  ⚠️   Port $PORT is already in use. Auto-killing..."
+    lsof -ti:$PORT | xargs kill -9 2>/dev/null
+    sleep 1
+    echo "  ✅  Cleared port $PORT"
 fi
 
 # Launch
