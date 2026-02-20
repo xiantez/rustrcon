@@ -7,9 +7,9 @@ A web-based RCON dashboard for [Rust](https://rust.facepunch.com/) game servers.
 ## Features
 
 - **Login & Saved Servers** — Enter your server's IP, RCON port, and password. Servers are saved in your browser for quick reconnect.
-- **Overview Dashboard** — Live KPIs: player count, FPS, entities, game time, uptime, world size/seed, network I/O — all with sparkline charts.
+- **Overview Dashboard** — Live KPIs: player count, FPS, entities, game time, uptime, world size/seed, network I/O, and server identity. Includes sparkline charts, quick server reboot, and weather convar toggles (Fog, Rain, Wind, etc.).
 - **Player Management** — View online players, click for Steam profile details (avatar, VAC status, profile links), kick or ban directly.
-- **Console** — Real-time server console with auto-tailing logs, command history (↑/↓), and Discord Logger noise filtering.
+- **Console & Chat** — Real-time server console with auto-tailing logs, command history (↑/↓), Discord Logger noise filtering, and a dedicated in-game chat panel.
 - **Give Items** — Searchable database of 1,193 Rust items. Queue multiple items and send them all at once to any player.
 - **7 Themes** — Midnight Sky, Deep Ocean, Emerald Forest, Sunset Rose, Golden Amber, Neon Violet, and Dark Mode.
 - **No Credentials Stored on Server** — All connection info stays in your browser's localStorage. Safe to self-host.
