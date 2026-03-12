@@ -72,7 +72,7 @@ app.get('/api/resolve/:hostname', function(req, res) {
 
 var PORT = process.env.PORT || 3001;
 var server = app.listen(PORT, function() {
-    console.log("RCON Dashboard running on http://localhost:" + PORT);
+    console.log("RCON Dashboard running on http://0.0.0.0:" + PORT);
 });
 server.on('error', function(err) {
     if (err.code === 'EADDRINUSE') {
