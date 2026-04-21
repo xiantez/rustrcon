@@ -201,6 +201,13 @@
         .overview-card:hover::before { opacity: 1; }
         .card-emoji { font-size: 1.75rem; line-height: 1; }
         .glow-text { text-shadow: 0 0 20px var(--accent-glow); }
+
+        /* Mobile bottom nav */
+        .mobile-nav-btn { color: var(--text-muted); transition: color 0.15s ease; }
+        .mobile-nav-btn.active { color: var(--accent); }
+        @media (max-width: 767px) {
+            .console-box { height: 240px; }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -242,17 +249,17 @@
     <!-- Dashboard (hidden until connected) -->
     <div id="dashboard" class="hidden">
     <!-- Top Bar -->
-    <header class="t-header border-b px-6 py-3 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-4">
+    <header class="t-header border-b px-3 md:px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2 md:gap-4">
             <h1 class="text-xl font-bold t-accent tracking-tight glow-text">🎮 RCON Dashboard</h1>
-            <span id="server-addr" class="text-xs t-dim console-font">...</span>
+            <span id="server-addr" class="hidden md:inline text-xs t-dim console-font">...</span>
         </div>
-        <div class="flex items-center gap-4">
-            <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-900/50 border border-red-800/50 text-sm">
+        <div class="flex items-center gap-2 md:gap-4">
+            <div id="status-badge" class="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 rounded-full bg-red-900/50 border border-red-800/50 text-sm">
                 <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span>
-                <span id="status-text" class="text-red-300">Connecting...</span>
+                <span id="status-text" class="hidden sm:inline text-red-300">Connecting...</span>
             </div>
-            <button onclick="doReconnect()" class="text-xs t-muted hover:text-white transition">Reconnect</button>
+            <button onclick="doReconnect()" class="hidden sm:inline text-xs t-muted hover:text-white transition">Reconnect</button>
             <button onclick="doDisconnect()" class="text-xs text-red-400 hover:text-red-300 transition">Disconnect</button>
             <!-- Theme Switcher -->
             <div class="theme-picker">
@@ -291,7 +298,7 @@
 
     <div class="flex min-h-[calc(100vh-57px)]">
         <!-- Sidebar -->
-        <nav class="w-56 t-sidebar border-r p-4 space-y-1">
+        <nav class="hidden md:flex md:flex-col w-56 t-sidebar border-r p-4 space-y-1">
             <button onclick="switchTab('overview')" data-tab="overview" class="sidebar-btn active w-full text-left px-4 py-2.5 rounded text-sm flex items-center gap-3">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
                 Overview
@@ -315,14 +322,14 @@
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 p-6 overflow-y-auto">
+        <main class="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto">
 
             <!-- Overview Tab (merged with Server Stats) -->
             <div id="overview-tab" class="fade-in">
                 <!-- Welcome Banner -->
                 <div class="t-card rounded-xl p-5 border mb-6 relative overflow-hidden">
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent" style="background: linear-gradient(135deg, var(--accent-glow), transparent 60%);"></div>
-                    <div class="relative flex justify-between items-center">
+                    <div class="relative flex flex-wrap justify-between items-center gap-3">
                         <div>
                             <h3 class="text-base font-semibold mb-1">👋 Welcome back, Admin</h3>
                             <p class="text-sm t-muted">Here's a quick look at your Rust server status.</p>
@@ -434,7 +441,7 @@
                         </div>
                     </div>
                     <!-- Toggles -->
-                    <div class="grid grid-cols-5 gap-4 mb-5" id="weather-toggles">
+                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 mb-5" id="weather-toggles">
                         <div class="flex flex-col items-center gap-2 bg-slate-800/50 rounded-lg py-3 px-2 border border-slate-700/30">
                             <span class="text-sm font-medium t-muted">Fog</span>
                             <button id="weather-fog-toggle" onclick="toggleWeather('fog')" class="relative w-12 h-6 rounded-full bg-slate-700 transition-colors cursor-pointer">
@@ -504,12 +511,12 @@
 
                 <!-- Online Players View -->
                 <div id="players-online-view">
-                    <div class="flex gap-6">
+                    <div class="flex flex-col md:flex-row gap-6">
                         <div id="player-list" class="space-y-2 flex-1 min-w-0">
                             <p class="text-slate-500 italic text-sm">Waiting for player data...</p>
                         </div>
                         <!-- Player Detail Panel -->
-                        <div id="player-detail" class="hidden w-80 shrink-0">
+                        <div id="player-detail" class="hidden w-full md:w-80 md:shrink-0">
                             <div class="t-card rounded-xl border p-5 sticky top-6">
                                 <button onclick="closePlayerDetail()" class="absolute top-3 right-3 text-slate-500 hover:text-slate-300 text-lg">&times;</button>
                                 <div class="flex flex-col items-center text-center mb-4">
@@ -620,9 +627,9 @@
                     <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                     Give Items
                 </h2>
-                <div class="flex gap-6">
+                <div class="flex flex-col lg:flex-row gap-6">
                     <!-- Give Form -->
-                    <div class="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50 w-96 shrink-0">
+                    <div class="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50 w-full lg:w-96 lg:shrink-0">
                         <div class="space-y-4">
                             <div>
                                 <label class="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Player</label>
@@ -727,9 +734,33 @@
             </div>
 
             <!-- Toast Container -->
-            <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-2"></div>
+            <div id="toast-container" class="fixed bottom-20 md:bottom-6 right-3 md:right-6 z-[100] flex flex-col gap-2"></div>
         </main>
     </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 t-header border-t flex items-stretch h-14">
+        <button onclick="switchTab('overview')" data-mobile-tab="overview" class="mobile-nav-btn active flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            Overview
+        </button>
+        <button onclick="switchTab('players')" data-mobile-tab="players" class="mobile-nav-btn flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Players
+        </button>
+        <button onclick="switchTab('console')" data-mobile-tab="console" class="mobile-nav-btn flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Console
+        </button>
+        <button onclick="switchTab('inventory')" data-mobile-tab="inventory" class="mobile-nav-btn flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            Give
+        </button>
+        <button onclick="switchTab('plugins')" data-mobile-tab="plugins" class="mobile-nav-btn flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"/></svg>
+            Plugins
+        </button>
+    </nav>
     </div><!-- end #dashboard -->
 
     <script>
@@ -1830,6 +1861,10 @@
             document.querySelectorAll('.sidebar-btn[data-tab]').forEach(function(btn) {
                 btn.classList.remove('active');
                 if (btn.dataset.tab === tab) btn.classList.add('active');
+            });
+            document.querySelectorAll('.mobile-nav-btn[data-mobile-tab]').forEach(function(btn) {
+                btn.classList.remove('active');
+                if (btn.dataset.mobileTab === tab) btn.classList.add('active');
             });
             if (tab === 'console') document.getElementById('cmd-input').focus();
             if (tab === 'overview') refreshServerInfoSilent();
