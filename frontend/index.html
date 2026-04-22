@@ -346,12 +346,12 @@
                     <div class="t-card rounded-xl p-4 border">
                         <p class="text-xs t-muted uppercase tracking-wider mb-1">🏃 Server FPS</p>
                         <p id="stat-fps" class="text-2xl font-bold text-sky-400">--</p>
-                        <div class="mt-2 h-12"><canvas id="fps-chart" width="200" height="48"></canvas></div>
+                        <div class="mt-2 h-12 overflow-hidden"><canvas id="fps-chart" class="w-full h-full" height="48"></canvas></div>
                     </div>
                     <div class="t-card rounded-xl p-4 border">
                         <p class="text-xs t-muted uppercase tracking-wider mb-1">🧱 Entities</p>
                         <p id="stat-entities" class="text-2xl font-bold text-amber-400">--</p>
-                        <div class="mt-2 h-12"><canvas id="entity-chart" width="200" height="48"></canvas></div>
+                        <div class="mt-2 h-12 overflow-hidden"><canvas id="entity-chart" class="w-full h-full" height="48"></canvas></div>
                     </div>
                     <div class="t-card rounded-xl p-4 border">
                         <p class="text-xs t-muted uppercase tracking-wider mb-1">🕐 Game Time</p>
@@ -535,11 +535,11 @@
                                 <div class="space-y-2">
                                     <a id="pd-steam-link" href="#" target="_blank" class="block w-full text-center bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm transition">View Steam Profile</a>
                                     <a id="pd-battlemetrics-link" href="#" target="_blank" class="block w-full text-center bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm transition">View on Battlemetrics</a>
-                                    <div class="flex gap-2 mt-2">
-                                        <button id="pd-kill-btn" class="flex-1 text-xs bg-orange-700/50 hover:bg-orange-600 px-2 py-2 rounded transition" title="Kill (bypasses god mode)">Kill</button>
-                                        <button id="pd-mute-btn" class="flex-1 text-xs bg-purple-700/50 hover:bg-purple-600 px-2 py-2 rounded transition">Mute</button>
-                                        <button id="pd-kick-btn" class="flex-1 text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-2 rounded transition">Kick</button>
-                                        <button id="pd-ban-btn" class="flex-1 text-xs bg-red-700/50 hover:bg-red-600 px-2 py-2 rounded transition">Ban</button>
+                                    <div class="grid grid-cols-2 gap-2 mt-2">
+                                        <button id="pd-kill-btn" class="text-xs bg-orange-700/50 hover:bg-orange-600 px-2 py-2 rounded transition" title="Kill (bypasses god mode)">Kill</button>
+                                        <button id="pd-mute-btn" class="text-xs bg-purple-700/50 hover:bg-purple-600 px-2 py-2 rounded transition">Mute</button>
+                                        <button id="pd-kick-btn" class="text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-2 rounded transition">Kick</button>
+                                        <button id="pd-ban-btn" class="text-xs bg-red-700/50 hover:bg-red-600 px-2 py-2 rounded transition">Ban</button>
                                     </div>
                                 </div>
                             </div>
@@ -1247,18 +1247,17 @@
                 var avatarUrl = steamAvatarCache[steamId] || 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_medium.jpg';
 
                 return '<div class="player-card flex justify-between items-center bg-slate-800/50 border border-slate-700/30 p-3 rounded-lg transition cursor-pointer hover:bg-slate-700/50" onclick="showPlayerDetail(' + idx + ')">' +
-                    '<div class="flex items-center gap-3">' +
-                        '<img src="' + avatarUrl + '" data-steamid="' + steamId + '" class="player-avatar w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                        '<div class="w-8 h-8 rounded-full bg-slate-700 items-center justify-center text-xs font-bold text-sky-400" style="display:none">' + initial + '</div>' +
-                        '<div>' +
-                            '<span class="font-medium text-sm">' + name + '</span>' +
-                            '<div class="text-xs text-slate-500 console-font">' + steamId + '</div>' +
+                    '<div class="flex items-center gap-3 min-w-0">' +
+                        '<img src="' + avatarUrl + '" data-steamid="' + steamId + '" class="player-avatar w-8 h-8 rounded-full bg-slate-700 shrink-0" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                        '<div class="w-8 h-8 rounded-full bg-slate-700 items-center justify-center text-xs font-bold text-sky-400 shrink-0" style="display:none">' + initial + '</div>' +
+                        '<div class="min-w-0">' +
+                            '<span class="font-medium text-sm block truncate">' + name + '</span>' +
+                            '<div class="text-xs text-slate-500 console-font hidden sm:block">' + steamId + '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div class="flex items-center gap-3">' +
-                        '<span class="text-xs ' + pingColor + ' console-font">' + ping + 'ms</span>' +
-                        '<span class="text-xs text-slate-500">' + ip + '</span>' +
-                        '<div class="flex gap-1" onclick="event.stopPropagation()">' +
+                    '<div class="flex items-center gap-2 shrink-0 ml-2">' +
+                        '<span class="text-xs ' + pingColor + ' console-font hidden sm:inline">' + ping + 'ms</span>' +
+                        '<div class="grid grid-cols-2 gap-1" onclick="event.stopPropagation()">' +
                             '<button onclick="killPlayer(' + idx + ')" class="text-xs bg-orange-700/50 hover:bg-orange-600 px-2 py-1 rounded transition">Kill</button>' +
                             '<button id="mute-btn-' + steamId + '" onclick="toggleMutePlayer(' + idx + ')" class="text-xs ' + (mutedPlayers[steamId] ? 'bg-purple-500/70 hover:bg-purple-400' : 'bg-purple-700/50 hover:bg-purple-600') + ' px-2 py-1 rounded transition">' + (mutedPlayers[steamId] ? 'Unmute' : 'Mute') + '</button>' +
                             '<button onclick="kickPlayer(' + idx + ')" class="text-xs bg-yellow-700/50 hover:bg-yellow-600 px-2 py-1 rounded transition">Kick</button>' +
@@ -2421,6 +2420,7 @@
             var canvas = document.getElementById(canvasId);
             if (!canvas || data.length < 2) return;
             var ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth || canvas.parentElement.offsetWidth || 200;
             var w = canvas.width;
             var h = canvas.height;
             ctx.clearRect(0, 0, w, h);
